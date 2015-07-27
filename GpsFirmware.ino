@@ -1,7 +1,9 @@
 #include<SoftwareSerial.h>
 
-//TODO: Include links for these libraries
+// Thanks: http://arduiniana.org/libraries/tinygps/
 #include "TinyGPS.h"
+
+// Thanks: http://www.pjrc.com/teensy/td_libs_Time.html
 #include "Time.h"
 
 // GPS Setup
@@ -9,7 +11,9 @@
 #define txGPS 2
 SoftwareSerial serialGPS = SoftwareSerial(rxGPS, txGPS);
 
-int timezone = -8;
+// PST (atm)
+int timezone = -7;
+
 TinyGPS gps;
 
 void setup() {
@@ -21,9 +25,13 @@ void setup() {
   // GPS Setup
   Serial.begin(rate);
   serialGPS.begin(rate);
-  Serial.println("Started");
+  Serial.println("Setting up...");
 
-  //TODO: Do an initial sync
+  // An initial sync
+  waitForUpdate();
+  syncToGps();
+
+  Serial.println("Starting...");
 }
 
 
@@ -33,7 +41,11 @@ void loop()
 
   tmElements_t arduinoTime;
   breakTime(now(), arduinoTime);
+
+  Serial.print("Arduino Time: ");
   print_tmElements_t(arduinoTime);
+  
+  Serial.println("Drift: " + String(timeDrift()) + '\n');
 }
 
 
@@ -44,7 +56,7 @@ void waitForUpdate(){
   while(!updated){
     while (serialGPS.available())
     {
-      int c = serialGPS.read();
+      char c = serialGPS.read();
       if (gps.encode(c))
       {
           updated = true;
@@ -54,9 +66,20 @@ void waitForUpdate(){
   }
 }
 
+void syncToGps(){
+  tmElements_t t = gpsTime();
 
-//The error between the internal clock time and the gps in seconds
-int timeDrift(){
+  // It's annoying they implement the 1970 standard everywhere except for setTime!
+  setTime(t.Hour, t.Minute, t.Second, t.Day, t.Month, t.Year - 30);
+
+  Serial.println("Year: " + String(t.Year));
+  Serial.println("Arduino Year: " + String(year()));
+  Serial.println("Syncing to...");
+  print_tmElements_t(t);
+}
+
+// The error between the internal clock time and the gps in seconds
+long timeDrift(){
   tmElements_t t = gpsTime();
   return now() - makeTime(t);
 }
@@ -65,14 +88,14 @@ int timeDrift(){
 void print_tmElements_t(tmElements_t t){
   Serial.print(String(t.Hour) + ":");
   Serial.print(String(t.Minute) + ":");
-  Serial.println(String(t.Second));
+  Serial.print(String(t.Second));
+  Serial.print(" - ");
 
   Serial.print(String(t.Day) + "/");
   Serial.print(String(t.Month) + "/");
   Serial.println(String(t.Year + 1970));
 }
 
-//TODO: Include offset
 tmElements_t gpsTime(){
   int year;
   byte month, day, hour, minute, second, hundredths;
@@ -88,13 +111,13 @@ tmElements_t gpsTime(){
   timeElement.Day = day;
   timeElement.Month = month;
 
-  //Time.h uses the unix offset from 1970 standard
-  timeElement.Year = 1970 + year;
-
-  int timeInSeconds = makeTime(timeElement);
-
-  //TODO: Make 60^3 a const
-  timeInSeconds += timezone * 60*60*60;
+  // Time.h uses the unix offset from 1970 standard
+  timeElement.Year = year - 1970;
+  long timeInSeconds = makeTime(timeElement);
+  
+  // TODO: Make 60^2 a const
+  int delta = timezone * 60*60;
+  timeInSeconds += delta;
 
   tmElements_t adjustedTime;
   breakTime(timeInSeconds, adjustedTime);
@@ -102,7 +125,7 @@ tmElements_t gpsTime(){
   return adjustedTime;
 }
 
-//TODO: Delete this dev code
+// TODO: Delete this dev code
 void printDebugInfo(){
   long lat, lon;
   unsigned long fix_age, time, date, speed, course;
