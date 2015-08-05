@@ -2,11 +2,15 @@
 
 #include <avr/interrupt.h>
 
+#include "TinyGPS.h"
+
 #define RXPIN 0
 #define TXPIN 3
 #define RATE 9600
 
 SoftwareSerial serialGPS = SoftwareSerial(RXPIN, TXPIN);
+
+TinyGPS gps;
 
 volatile unsigned long lastPulseMs;
 unsigned int cycle = 0;
@@ -38,7 +42,12 @@ void loop() {
   while (serialGPS.available()) {
 //    digitalWrite(4, HIGH);
     char c = serialGPS.read();
-    analogWrite(4, c);
+    if (gps.encode(c)) {
+      digitalWrite(4, HIGH);    
+      delay(gps.satellites());
+      digitalWrite(4, LOW);
+      delay(5);
+    }
   }
   digitalWrite(4, LOW);
   
