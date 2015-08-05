@@ -2,7 +2,7 @@
 
 #include <avr/interrupt.h>
 
-#include "TinyGPS.h"
+#include <stdlib.h>
 
 #define RXPIN 0
 #define TXPIN 3
@@ -10,10 +10,13 @@
 
 SoftwareSerial serialGPS = SoftwareSerial(RXPIN, TXPIN);
 
-TinyGPS gps;
-
 volatile unsigned long lastPulseMs;
 unsigned int cycle = 0;
+
+#define BUFLEN 128
+char buffer[BUFLEN];
+int bufpos;
+bool inSentence;
 
 void setup() {
   // put your setup code here, to run once:
@@ -30,6 +33,9 @@ void setup() {
   attachInterrupt(0, ppsIsr, RISING);
 
   serialGPS.begin(RATE);
+
+  bufpos = 0;
+  inSentence = false;
 }
 
 void loop() {
@@ -40,18 +46,39 @@ void loop() {
   digitalWrite(1, (now < lastPulseMs + 250) ? HIGH : LOW);
 
   while (serialGPS.available()) {
-//    digitalWrite(4, HIGH);
     char c = serialGPS.read();
-    if (gps.encode(c)) {
-      digitalWrite(4, HIGH);    
-      delay(gps.satellites());
-      digitalWrite(4, LOW);
-      delay(5);
+    if (c == '$') {
+      inSentence = true;
+      bufpos = 0;
+    }
+    
+    if (inSentence) {
+      buffer[bufpos] = c;
+      bufpos++;
+      if (bufpos >= BUFLEN) {
+        bufpos = 0; // XXX
+      }
+    }
+
+    if (c == '*') {
+      inSentence = false;
+
+      if (strncmp(buffer, "$GPRMC", 6) == 0) {
+        blink(5, 5);
+
+        int sec = (buffer[12] - '0');
+        analogWrite(4, sec*25);
+      }
     }
   }
+}
+
+void blink(int onTime, int offTime)
+{
+  digitalWrite(4, HIGH);
+  delay(onTime);
   digitalWrite(4, LOW);
-  
-  cycle++;
+  delay(offTime);
 }
 
 void ppsIsr(void)
