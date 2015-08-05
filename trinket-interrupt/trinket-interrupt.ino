@@ -11,6 +11,7 @@
 SoftwareSerial serialGPS = SoftwareSerial(RXPIN, TXPIN);
 
 volatile unsigned long lastPulseMs;
+volatile unsigned long lastPulseUs;
 unsigned int cycle = 0;
 
 #define BUFLEN 128
@@ -68,7 +69,15 @@ void loop() {
 
         int sec = (buffer[12] - '0');
         analogWrite(4, sec*25);
+
+        buffer[bufpos++] = '\r';
+        buffer[bufpos++] = '\n';
+        buffer[bufpos++] = 0;
+        serialGPS.write(buffer);
+        serialGPS.println(lastPulseMs);
+        serialGPS.println(lastPulseUs);
       }
+
     }
   }
 }
@@ -84,5 +93,6 @@ void blink(int onTime, int offTime)
 void ppsIsr(void)
 {
   lastPulseMs = millis();
+  lastPulseUs = micros();
 }
 
