@@ -22,6 +22,17 @@ char buffer[BUFLEN];
 int bufpos;
 bool inSentence;
 
+struct fix_struct {
+  uint8_t fixHourInDay;
+  uint8_t fixMinuteInHour;
+  uint8_t fixSecondInMinute;
+  uint8_t fixDayInMonth;
+  uint8_t fixMonthInYear;
+  unsigned long fixReceiveMs;
+};
+
+struct fix_struct recentFix;
+
 void setup() {
   // put your setup code here, to run once:
 
@@ -71,6 +82,8 @@ void loop() {
       inSentence = false;
 
       if (strncmp(buffer, "$GPRMC", 6) == 0) {
+        
+        updateFixFromNmea(&recentFix, buffer, bufpos);
         digitalWrite(LEDPIN, HIGH);
         delay(5);
         digitalWrite(LEDPIN, LOW); 
@@ -78,6 +91,29 @@ void loop() {
 
     }
   }
+}
+
+#define RMC_HOUR_TENS 7
+#define RMC_HOUR_ONES 8
+#define RMC_MINUTE_TENS 9
+#define RMC_MINUTE_ONES 10
+#define RMC_SECOND_TENS 11
+#define RMC_SECOND_ONES 12
+
+#define RMC_DAY_TENS 53
+#define RMC_DAY_ONES 54
+#define RMC_MONTH_TENS 55
+#define RMC_MONTH_ONES 56
+
+#define RMC_MIN_LEN 57
+
+void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
+{
+  fupd->fixHourInDay = (buffer[RMC_HOUR_TENS] - '0') * 10 + (buffer[RMC_HOUR_ONES] - '0');
+  fupd->fixMinuteInHour = (buffer[RMC_MINUTE_TENS] - '0') * 10 + (buffer[RMC_MINUTE_ONES] - '0');
+  fupd->fixSecondInMinute = (buffer[RMC_SECOND_TENS] - '0') * 10 + (buffer[RMC_SECOND_ONES] - '0');
+  fupd->fixDayInMonth = (buffer[RMC_DAY_TENS] - '0') * 10 + (buffer[RMC_DAY_ONES] - '0');
+  fupd->fixMonthInYear = (buffer[RMC_MONTH_TENS] - '0') * 10 + (buffer[RMC_MONTH_ONES] - '0');
 }
 
 void blink(int onTime, int offTime)

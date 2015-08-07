@@ -57,29 +57,7 @@ typedef struct _DELAY_TABLE
   unsigned short tx_delay;
 } DELAY_TABLE;
 
-#if F_CPU == 16000000
-
-static const DELAY_TABLE PROGMEM table[] = 
-{
-  //  baud    rxcenter   rxintra    rxstop    tx
-  { 115200,   1,         17,        17,       12,    },
-  { 57600,    10,        37,        37,       33,    },
-  { 38400,    25,        57,        57,       54,    },
-  { 31250,    31,        70,        70,       68,    },
-  { 28800,    34,        77,        77,       74,    },
-  { 19200,    54,        117,       117,      114,   },
-  { 14400,    74,        156,       156,      153,   },
-  { 9600,     114,       236,       236,      233,   },
-  { 4800,     233,       474,       474,      471,   },
-  { 2400,     471,       950,       950,      947,   },
-  { 1200,     947,       1902,      1902,     1899,  },
-  { 600,      1902,      3804,      3804,     3800,  },
-  { 300,      3804,      7617,      7617,     7614,  },
-};
-
-const int XMIT_START_ADJUSTMENT = 5;
-
-#elif F_CPU == 8000000
+#if F_CPU == 8000000
 
 static const DELAY_TABLE table[] PROGMEM = 
 {
@@ -89,34 +67,9 @@ static const DELAY_TABLE table[] PROGMEM =
 
 const int XMIT_START_ADJUSTMENT = 4;
 
-#elif F_CPU == 20000000
-
-// 20MHz support courtesy of the good people at macegr.com.
-// Thanks, Garrett!
-
-static const DELAY_TABLE PROGMEM table[] =
-{
-  //  baud    rxcenter    rxintra    rxstop  tx
-  { 115200,   3,          21,        21,     18,     },
-  { 57600,    20,         43,        43,     41,     },
-  { 38400,    37,         73,        73,     70,     },
-  { 31250,    45,         89,        89,     88,     },
-  { 28800,    46,         98,        98,     95,     },
-  { 19200,    71,         148,       148,    145,    },
-  { 14400,    96,         197,       197,    194,    },
-  { 9600,     146,        297,       297,    294,    },
-  { 4800,     296,        595,       595,    592,    },
-  { 2400,     592,        1189,      1189,   1186,   },
-  { 1200,     1187,       2379,      2379,   2376,   },
-  { 600,      2379,       4759,      4759,   4755,   },
-  { 300,      4759,       9523,      9523,   9520,   },
-};
-
-const int XMIT_START_ADJUSTMENT = 6;
-
 #else
 
-#error This version of SoftwareSerial supports only 20, 16 and 8MHz processors
+#error This tinified version of SoftwareSerial supports only 8MHz processors
 
 #endif
 
@@ -343,6 +296,7 @@ TinySerial::~TinySerial()
   end();
 }
 
+
 void TinySerial::setTX(uint8_t tx)
 {
   pinMode(tx, OUTPUT);
@@ -362,6 +316,7 @@ void TinySerial::setRX(uint8_t rx)
   uint8_t port = digitalPinToPort(rx);
   _receivePortRegister = portInputRegister(port);
 }
+
 
 //
 // Public methods
