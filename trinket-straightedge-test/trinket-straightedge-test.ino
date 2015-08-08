@@ -2,31 +2,7 @@
 #include <avr/interrupt.h>
 #include <stdlib.h>
 
-#include "TinySerial.h"
-
-#define RXPIN 0
-#define ENABLEPIN 1
-#define PPSPIN 2
-#define TXPIN 3
-#define LEDPIN 4
-
-#define RATE 9600
-
-#define SETUP_PSM_LENGTH 50
-uint8_t setupPSM[SETUP_PSM_LENGTH] = { 0xB5, 0x62, 0x06, 0x3B, 0x2C, 0x00, 0x01, 0x06, 0x00, 0x00, 0x00, 0x80, 0x02, 0x01, 0x10, 0x27, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x4F, 0xC1, 0x03, 0x00, 0x87, 0x02, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x64, 0x40, 0x01, 0x00 } ; 
-
-#define ACTIVATE_PSM_LENGTH 8
-uint8_t activatePSM[ACTIVATE_PSM_LENGTH] = { 0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x08, 0x01 } ;
-
-TinySerial serialGPS = TinySerial(RXPIN, TXPIN);
-
-volatile unsigned long lastPulseMs;
-volatile unsigned int pulsesSinceFix;
-
-#define BUFLEN 128
-char buffer[BUFLEN];
-int bufpos;
-bool inSentence;
+#include <SoftwareSerial.h>
 
 struct datetime_struct {
   long secondInDay;
@@ -39,6 +15,27 @@ struct fix_struct {
   uint8_t fixValid;
 };
 
+#define RXPIN 0
+#define ENABLEPIN 1
+#define PPSPIN 2
+#define TXPIN 3
+#define LEDPIN 4
+
+#define RATE 9600
+
+#define FAST_PULSE_LENGTH 40
+uint8_t fastPulse[FAST_PULSE_LENGTH] = { 0xB5, 0x62, 0x06, 0x31, 0x20, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0xA1, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA0, 0x86, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF3, 0x00, 0x00, 0x00, 0x3A, 0xAF };
+
+SoftwareSerial serialGPS = SoftwareSerial(RXPIN, TXPIN);
+
+volatile unsigned long ultimatePulseMs;
+volatile unsigned long penultimatePulseMs;
+
+#define BUFLEN 128
+char buffer[BUFLEN];
+int bufpos;
+bool inSentence;
+
 struct fix_struct recentFix;
 
 void setup() {
@@ -50,7 +47,8 @@ void setup() {
   pinMode(TXPIN, OUTPUT);
   pinMode(LEDPIN, OUTPUT);
 
-  lastPulseMs = 0;
+  ultimatePulseMs = 0;
+  penultimatePulseMs = 0;
 
   attachInterrupt(0, ppsIsr, RISING);
 
@@ -59,13 +57,20 @@ void setup() {
   bufpos = 0;
   inSentence = false;
 
-  digitalWrite(ENABLEPIN, HIGH);
+  digitalWrite(ENABLEPIN, LOW);
   digitalWrite(LEDPIN, LOW);
 
   recentFix.fixValid = 0;
 
-  serialGPS.writeBytes(setupPSM, SETUP_PSM_LENGTH);
-  serialGPS.writeBytes(activatePSM, ACTIVATE_PSM_LENGTH);
+  heartbeat();
+
+  digitalWrite(ENABLEPIN, HIGH);
+
+  delay(1000);
+
+  heartbeat();
+
+  serialGPS.write(fastPulse, FAST_PULSE_LENGTH);
 }
 
 void loop() {
@@ -88,34 +93,20 @@ void loop() {
       inSentence = false;
       if (strncmp(buffer, "$GPRMC", 6) == 0) {        
         updateFixFromNmea(&recentFix, buffer, bufpos);
+        recentFix.fixValid = true;
       }
     }
   }
 
   if (recentFix.fixValid) {
-    struct datetime_struct nowDateTime = recentFix.fixDateTime;
-    addSeconds(&nowDateTime, pulsesSinceFix);
-    updateBlink(&nowDateTime);
-  }
-}
-
-#define BLINK_START 10800 /* 19:00 PDT = 03:00 UTC */
-#define BLINK_STOP  54000 /* 07:00 PDT = 15:00 UTC */
-#define BLINK_DUR 40
-
-void updateBlink(struct datetime_struct *nowDateTime)
-{
-  if (nowDateTime->secondInDay >= BLINK_START && nowDateTime->secondInDay <= BLINK_STOP)
-  {
-    unsigned long nowMs = millis();
-    
-    if (dtSecond(nowDateTime) < 2) {
-      
+    unsigned long now = millis();
+    if ((now < ultimatePulseMs + 100) 
+        && (ultimatePulseMs > penultimatePulseMs + 400)
+        && (ultimatePulseMs < penultimatePulseMs + 600)) {
+      digitalWrite(LEDPIN, HIGH);
     } else {
-      digitalWrite(LEDPIN, (nowMs < lastPulseMs + BLINK_DUR) ? HIGH : LOW);
+      digitalWrite(LEDPIN, LOW);
     }
-  } else {
-    digitalWrite(LEDPIN, LOW); 
   }
 }
 
@@ -147,34 +138,22 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
   fupd->fixDateTime.dayInYear = monthFirstDate[monthInYear] + dayInMonth;
 }
 
-#define SECONDS_IN_DAY 86400
-void addSeconds(struct datetime_struct *dt, unsigned int nsecs)
+void heartbeat(void)
 {
-  dt->secondInDay += (long) nsecs;
-  while (dt->secondInDay >= SECONDS_IN_DAY) {
-    dt->secondInDay -= SECONDS_IN_DAY;
-    dt->dayInYear++;
+  for (int i = 0; i < 255; i++) {
+    analogWrite(LEDPIN, i);
+    delay(1);
   }
-}
 
-inline uint8_t dtSecond(const datetime_struct *dt)
-{
-  return (uint8_t) (dt->secondInDay % 60);
-}
-
-inline uint8_t dtMinute(const datetime_struct *dt)
-{
-  return (uint8_t) ((dt->secondInDay / 60) % 60);
-}
-
-inline uint8_t dtHour(const datetime_struct *dt)
-{
-  return (uint8_t) (dt->secondInDay / 3600);
+  for (int i = 254; i >= 0; i--) {
+    analogWrite(LEDPIN, i);
+    delay(1);
+  }
 }
 
 void ppsIsr(void)
 {
-  lastPulseMs = millis();
-  pulsesSinceFix++;
+  penultimatePulseMs = ultimatePulseMs;
+  ultimatePulseMs = millis();
 }
 
