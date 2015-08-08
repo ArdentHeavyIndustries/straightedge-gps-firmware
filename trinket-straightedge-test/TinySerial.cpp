@@ -389,6 +389,13 @@ int TinySerial::available()
   return (_receive_buffer_tail + _SS_MAX_RX_BUFF - _receive_buffer_head) % _SS_MAX_RX_BUFF;
 }
 
+void TinySerial::writeBytes(uint8_t *buf, int buflen)
+{
+  for (int i = 0; i < buflen; i++) {
+    write(buf[i]);
+  }
+}
+
 size_t TinySerial::write(uint8_t b)
 {
   if (_tx_delay == 0) {

@@ -96,7 +96,6 @@ public:
   int available();
   void flush();
   
-  void writeByte(uint8_t);
   void writeBytes(uint8_t *, int);
   
   // public only for easy access by interrupt handlers
