@@ -15,20 +15,22 @@
 TinySerial serialGPS = TinySerial(RXPIN, TXPIN);
 
 volatile unsigned long lastPulseMs;
-unsigned int cycle = 0;
+volatile unsigned int pulsesSinceFix;
 
 #define BUFLEN 128
 char buffer[BUFLEN];
 int bufpos;
 bool inSentence;
 
+struct datetime_struct {
+  long secondInDay;
+  int dayInYear;
+};
+
 struct fix_struct {
-  uint8_t fixHourInDay;
-  uint8_t fixMinuteInHour;
-  uint8_t fixSecondInMinute;
-  uint8_t fixDayInMonth;
-  uint8_t fixMonthInYear;
+  struct datetime_struct fixDateTime;
   unsigned long fixReceiveMs;
+  uint8_t fixValid;
 };
 
 struct fix_struct recentFix;
@@ -53,16 +55,11 @@ void setup() {
 
   digitalWrite(ENABLEPIN, HIGH);
   digitalWrite(LEDPIN, LOW);
+
+  recentFix.fixValid = 0;
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-
-  unsigned long now = millis();
-  
-
-//  digitalWrite(1, (now < lastPulseMs + 40) ? HIGH : LOW);
-
   while (serialGPS.available()) {
     char c = serialGPS.read();
     if (c == '$') {
@@ -73,23 +70,43 @@ void loop() {
     if (inSentence) {
       buffer[bufpos] = c;
       bufpos++;
-      if (bufpos >= BUFLEN) {
-        bufpos = 0; // XXX
+      if (bufpos > BUFLEN) {
+        inSentence = false;
       }
     }
 
     if (c == '*') {
       inSentence = false;
-
-      if (strncmp(buffer, "$GPRMC", 6) == 0) {
-        
+      if (strncmp(buffer, "$GPRMC", 6) == 0) {        
         updateFixFromNmea(&recentFix, buffer, bufpos);
-        digitalWrite(LEDPIN, HIGH);
-        delay(5);
-        digitalWrite(LEDPIN, LOW); 
       }
-
     }
+  }
+
+  if (recentFix.fixValid) {
+    struct datetime_struct nowDateTime = recentFix.fixDateTime;
+    addSeconds(&nowDateTime, pulsesSinceFix);
+    updateBlink(&nowDateTime);
+  }
+}
+
+#define BLINK_START 10800 /* 19:00 PDT = 03:00 UTC */
+#define BLINK_STOP  54000 /* 07:00 PDT = 15:00 UTC */
+#define BLINK_DUR 40
+
+void updateBlink(struct datetime_struct *nowDateTime)
+{
+  if (nowDateTime->secondInDay >= BLINK_START && nowDateTime->secondInDay <= BLINK_STOP)
+  {
+    unsigned long nowMs = millis();
+    
+    if (dtSecond(nowDateTime) < 2) {
+      
+    } else {
+      digitalWrite(LEDPIN, (nowMs < lastPulseMs + BLINK_DUR) ? HIGH : LOW);
+    }
+  } else {
+    digitalWrite(LEDPIN, LOW); 
   }
 }
 
@@ -107,25 +124,48 @@ void loop() {
 
 #define RMC_MIN_LEN 57
 
+#define NMONTHS 12
+int monthFirstDate[NMONTHS] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+
 void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 {
-  fupd->fixHourInDay = (buffer[RMC_HOUR_TENS] - '0') * 10 + (buffer[RMC_HOUR_ONES] - '0');
-  fupd->fixMinuteInHour = (buffer[RMC_MINUTE_TENS] - '0') * 10 + (buffer[RMC_MINUTE_ONES] - '0');
-  fupd->fixSecondInMinute = (buffer[RMC_SECOND_TENS] - '0') * 10 + (buffer[RMC_SECOND_ONES] - '0');
-  fupd->fixDayInMonth = (buffer[RMC_DAY_TENS] - '0') * 10 + (buffer[RMC_DAY_ONES] - '0');
-  fupd->fixMonthInYear = (buffer[RMC_MONTH_TENS] - '0') * 10 + (buffer[RMC_MONTH_ONES] - '0');
+  long secondInMinute = (buffer[RMC_SECOND_TENS] - '0') * 10 + (buffer[RMC_SECOND_ONES] - '0');
+  long minuteInHour = (buffer[RMC_MINUTE_TENS] - '0') * 10 + (buffer[RMC_MINUTE_ONES] - '0');
+  long hourInDay = (buffer[RMC_HOUR_TENS] - '0') * 10 + (buffer[RMC_HOUR_ONES] - '0');
+  fupd->fixDateTime.secondInDay = secondInMinute = 60 * (minuteInHour + (60 * hourInDay));
+  int dayInMonth = (buffer[RMC_DAY_TENS] - '0') * 10 + (buffer[RMC_DAY_ONES] - '0') - 1;
+  int monthInYear = (buffer[RMC_MONTH_TENS] - '0') * 10 + (buffer[RMC_MONTH_ONES] - '0') - 1;
+  fupd->fixDateTime.dayInYear = monthFirstDate[monthInYear] + dayInMonth;
 }
 
-void blink(int onTime, int offTime)
+#define SECONDS_IN_DAY 86400
+void addSeconds(struct datetime_struct *dt, unsigned int nsecs)
 {
-  digitalWrite(4, HIGH);
-  delay(onTime);
-  digitalWrite(4, LOW);
-  delay(offTime);
+  dt->secondInDay += (long) nsecs;
+  while (dt->secondInDay >= SECONDS_IN_DAY) {
+    dt->secondInDay -= SECONDS_IN_DAY;
+    dt->dayInYear++;
+  }
+}
+
+inline uint8_t dtSecond(const datetime_struct *dt)
+{
+  return (uint8_t) (dt->secondInDay % 60);
+}
+
+inline uint8_t dtMinute(const datetime_struct *dt)
+{
+  return (uint8_t) ((dt->secondInDay / 60) % 60);
+}
+
+inline uint8_t dtHour(const datetime_struct *dt)
+{
+  return (uint8_t) (dt->secondInDay / 3600);
 }
 
 void ppsIsr(void)
 {
   lastPulseMs = millis();
+  pulsesSinceFix++;
 }
 
