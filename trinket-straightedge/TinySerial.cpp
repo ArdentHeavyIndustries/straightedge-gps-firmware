@@ -449,16 +449,3 @@ void TinySerial::flush()
   _receive_buffer_head = _receive_buffer_tail = 0;
   SREG = oldSREG;
 }
-
-int TinySerial::peek()
-{
-  if (!isListening())
-    return -1;
-
-  // Empty buffer?
-  if (_receive_buffer_head == _receive_buffer_tail)
-    return -1;
-
-  // Read from "head"
-  return _receive_buffer[_receive_buffer_head];
-}

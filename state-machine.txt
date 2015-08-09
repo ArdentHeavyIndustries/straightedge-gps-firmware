@@ -1,7 +1,9 @@
 System states:
 
-Startup: GPS active, waiting for first valid fix data; transition to daytime upon getting GPS fix
-Daytime: GPS off, delay until onboard clock indicates dusk (1% drift over 24 hours = 36 minutes / day); transition to dusk pre-event or dusk of event
+Startup: GPS active, waiting for first valid fix data; transition to daytime or dusk upon getting GPS fix
+Daytime: GPS off, delay until onboard clock indicates dusk (1% drift over 24 hours = 36 minutes / day); transition to dusk
+Dusk: turn on (or keep on) GPS, get fresh GPS fix; switch to night pre-
+
 Dusk pre-event awaiting fix: GPS on, delay until we have a fix (sync once per 24 hours); transition to dusk pre-event have fix
 Dusk pre-event have fix: GPS off, delay until night time; transition to night pre-event
 Night pre-event: GPS off, blinking once / few seconds according to on-board clock; transition to daytime or to night event start
