@@ -50,9 +50,23 @@ enum state_enum currentState;
 
 enum state_enum stateLoop(enum state_enum);
 enum state_enum startupLoop(void);
+enum state_enum daytimeLoop(void);
+enum state_enum duskPreUnfixedLoop(void);
+enum state_enum duskPreFixedLoop(void);
+enum state_enum nightPreLoop(void);
+enum state_enum nightStartLoop(void);
+enum state_enum duskEventLoop(void);
 enum state_enum nightEventLoop(void);
 
 void enterState(enum state_enum nextState);
+enum state_enum startupEnter(void);
+enum state_enum daytimeEnter(void);
+enum state_enum duskPreUnfixedEnter(void);
+enum state_enum duskPreFixedEnter(void);
+enum state_enum nightPreEnter(void);
+enum state_enum nightStartEnter(void);
+enum state_enum duskEventEnter(void);
+enum state_enum nightEventEnter(void);
 
 void setup() {
   // put your setup code here, to run once:
@@ -72,7 +86,7 @@ void setup() {
   bufpos = 0;
   inSentence = false;
 
-  digitalWrite(ENABLEPIN, HIGH);
+  digitalWrite(ENABLEPIN, LOW);
   digitalWrite(LEDPIN, LOW);
 
   recentFix.fixValid = 0;
@@ -98,7 +112,16 @@ enum state_enum stateLoop(enum state_enum) {
   switch(currentState) {
     case stateStartup:
       return startupLoop();
-
+    case stateDaytime:
+      return daytimeLoop();
+    case stateDuskPreUnfixed:
+      return duskPreUnfixedLoop();
+    case stateDuskPreFixed:
+      return duskPreFixedLoop();
+    case stateNightPre:
+      return nightPreLoop();
+    case stateNightStart:
+      return nightStartLoop();
     case stateNightEvent:
       return nightEventLoop();
     
@@ -115,6 +138,13 @@ void enterState(enum state_enum nextState)
 enum state_enum startupLoop(void) {
   return stateNightEvent;
 }
+
+enum state_enum daytimeLoop(void) { /* XXX */ }
+enum state_enum duskPreUnfixedLoop(void) { /* XXX */ }
+enum state_enum duskPreFixedLoop(void) { /* XXX */ }
+enum state_enum nightPreLoop(void) { /* XXX */ }
+enum state_enum nightStartLoop(void) { /* XXX */ }
+enum state_enum duskEventLoop(void) { /* XXX */ }
 
 enum state_enum nightEventLoop(void) {
   // Can't drain all serial input on one loop -- blocks too long, miss cycles through updateBlink
