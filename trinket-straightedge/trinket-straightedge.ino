@@ -35,6 +35,25 @@ struct fix_struct {
 
 struct fix_struct recentFix;
 
+enum state_enum {
+  stateStartup,
+  stateDaytime,
+  stateDuskPreUnfixed,
+  stateDuskPreFixed,
+  stateNightPre,
+  stateNightStart,
+  stateDuskEvent,
+  stateNightEvent
+};
+
+enum state_enum currentState;
+
+enum state_enum stateLoop(enum state_enum);
+enum state_enum startupLoop(void);
+enum state_enum nightEventLoop(void);
+
+void enterState(enum state_enum nextState);
+
 void setup() {
   // put your setup code here, to run once:
 
@@ -57,10 +76,49 @@ void setup() {
   digitalWrite(LEDPIN, LOW);
 
   recentFix.fixValid = 0;
+
+  currentState = stateStartup;
 }
 
-void loop() {
-  while (serialGPS.available()) {
+#define MAX_PULSE_WAIT 1100
+#define PULSE_START     100
+#define PULSE_DUR        40
+
+void loop(void) {
+  enum state_enum nextState = stateLoop(currentState);
+
+  if (nextState != currentState) {
+    enterState(nextState);
+  }
+
+  currentState = nextState;
+}
+
+enum state_enum stateLoop(enum state_enum) {
+  switch(currentState) {
+    case stateStartup:
+      return startupLoop();
+
+    case stateNightEvent:
+      return nightEventLoop();
+    
+    default:
+      return stateStartup; // Recover from error by switching back to startup
+  }
+}
+
+void enterState(enum state_enum nextState)
+{
+  
+}
+
+enum state_enum startupLoop(void) {
+  return stateNightEvent;
+}
+
+enum state_enum nightEventLoop(void) {
+  // Can't drain all serial input on one loop -- blocks too long, miss cycles through updateBlink
+  if (serialGPS.available()) {
     char c = serialGPS.read();
     if (c == '$') {
       inSentence = true;
@@ -84,27 +142,41 @@ void loop() {
   }
 
   if (recentFix.fixValid) {
+    unsigned long now = millis();
+    
     struct datetime_struct nowDateTime = recentFix.fixDateTime;
-    addSeconds(&nowDateTime, pulsesSinceFix);
+
+    if (now < lastPulseMs + MAX_PULSE_WAIT) {    
+      addSeconds(&nowDateTime, pulsesSinceFix);
+    } else {
+      addSeconds(&nowDateTime, ((unsigned int) ((now - lastPulseMs) / 1000L)));
+    }
+
     updateBlink(&nowDateTime);
   }
+
+  return stateNightEvent;
 }
 
-#define BLINK_START 10800 /* 19:00 PDT = 03:00 UTC */
-#define BLINK_STOP  54000 /* 07:00 PDT = 15:00 UTC */
-#define BLINK_DUR 40
+#define ALWAYS_BLINK 1
+
+#ifndef ALWAYS_BLINK
+# define BLINK_START 10800 /* 19:00 PDT = 03:00 UTC */
+# define BLINK_STOP  54000 /* 07:00 PDT = 15:00 UTC */
+#else
+# define BLINK_START 0
+# define BLINK_STOP  86400
+#endif
 
 void updateBlink(struct datetime_struct *nowDateTime)
 {
-  if (nowDateTime->secondInDay >= BLINK_START && nowDateTime->secondInDay <= BLINK_STOP)
-  {
+  if (nowDateTime->secondInDay >= BLINK_START && nowDateTime->secondInDay <= BLINK_STOP) {
     unsigned long nowMs = millis();
+    unsigned long millisInSecond = (nowMs - lastPulseMs) % 1000;
     
-    if (dtSecond(nowDateTime) < 2) {
-      
-    } else {
-      digitalWrite(LEDPIN, (nowMs < lastPulseMs + BLINK_DUR) ? HIGH : LOW);
-    }
+    digitalWrite(LEDPIN, ((millisInSecond >= PULSE_START) && (millisInSecond < (PULSE_START + PULSE_DUR))) ? HIGH : LOW);
+
+    // Also seismic pulses
   } else {
     digitalWrite(LEDPIN, LOW); 
   }
@@ -116,6 +188,8 @@ void updateBlink(struct datetime_struct *nowDateTime)
 #define RMC_MINUTE_ONES 10
 #define RMC_SECOND_TENS 11
 #define RMC_SECOND_ONES 12
+
+#define RMC_VALIDITY 17
 
 #define RMC_DAY_TENS 53
 #define RMC_DAY_ONES 54
@@ -136,6 +210,8 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
   int dayInMonth = (buffer[RMC_DAY_TENS] - '0') * 10 + (buffer[RMC_DAY_ONES] - '0') - 1;
   int monthInYear = (buffer[RMC_MONTH_TENS] - '0') * 10 + (buffer[RMC_MONTH_ONES] - '0') - 1;
   fupd->fixDateTime.dayInYear = monthFirstDate[monthInYear] + dayInMonth;
+
+  fupd->fixValid = (buffer[RMC_VALIDITY] == 'A');
 }
 
 #define SECONDS_IN_DAY 86400

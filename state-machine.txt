@@ -1,0 +1,45 @@
+System states:
+
+Startup: GPS active, waiting for first valid fix data; transition to daytime upon getting GPS fix
+Daytime: GPS off, delay until onboard clock indicates dusk (1% drift over 24 hours = 36 minutes / day); transition to dusk pre-event or dusk of event
+Dusk pre-event awaiting fix: GPS on, delay until we have a fix (sync once per 24 hours); transition to dusk pre-event have fix
+Dusk pre-event have fix: GPS off, delay until night time; transition to night pre-event
+Night pre-event: GPS off, blinking once / few seconds according to on-board clock; transition to daytime or to night event start
+Night event start: GPS active, maintaining fix, blinking once / few seconds according to on-board clock; transition to night during event (fallback transition to daytime)
+Dusk during event: GPS active, maintaining fix, waiting for night time; transition to night during event
+Night during event: GPS active, maintaining fix, blinking once / second and doing seismic waves according to GPS PPS; transition to daytime
+
+LOOP:
+Call state-specific loop function, capture return value
+
+
+Earliest civil twilight is 19:49 local / 02:49 UTC
+Latest civil dawn in 06:00 local / 13:00 UTC
+
+45 minutes dusk (say 19:04 switch-on)
+
+Latitude, Longitude: 40 52.9' N, 119 03.8' W     Time zone: -8:00 (Pacific)     DST observance: North America
+August 24
+Twi: 5:46
+Sunrise: 6:14
+Sunset: 19:43
+Twi: 20:12
+
+UTC TIMES
+Twi: 12:46
+Sunrise: 13:14
+Sunset: 2:43
+Twi: 3:12
+
+Latitude, Longitude: 40 52.9' N, 119 03.8' W     Time zone: -8:00 (Pacific)     DST observance: North America
+September 7
+Twi: 6:00
+Sunrise: 6:28
+Sunset: 19:21
+Twi: 19:49
+
+UTC TIMES
+Twi: 13:00
+Sunrise: 13:28
+Sunset: 2:21
+Twi: 2:49
