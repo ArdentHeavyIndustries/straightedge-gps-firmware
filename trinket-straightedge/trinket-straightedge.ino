@@ -76,13 +76,13 @@ enum state_enum nightPreLoop(void);
 enum state_enum nightStartLoop(void);
 enum state_enum nightEventLoop(void);
 
-int enterState(enum state_enum nextState);
+void enterState(enum state_enum nextState);
 void startupEnter(void); /* Can't fail! */
-int daytimeEnter(void);
-int duskEnter(void);
-int nightPreEnter(void);
-int nightStartEnter(void);
-int nightEventEnter(void);
+void daytimeEnter(void);
+void duskEnter(void);
+void nightPreEnter(void);
+void nightStartEnter(void);
+void nightEventEnter(void);
 
 #if TESTING
 unsigned long lastDebug;
@@ -170,19 +170,8 @@ void loop(void) {
     serialGPS.write('\r');
     serialGPS.write('\n');
 #endif
-
-    if (enterState(nextState) < 0) {
-#if TESTING
-      serialGPS.write('A' + currentState);
-      serialGPS.write('x');
-      serialGPS.write('\r');
-      serialGPS.write('\n');
-#endif
-      currentState = stateStartup;
-      startupEnter();
-    } else {
-      currentState = nextState;
-    }
+    enterState(nextState);
+    currentState = nextState;
   }
 }
 
@@ -208,37 +197,32 @@ enum state_enum stateLoop(enum state_enum) {
   }
 }
 
-int enterState(enum state_enum nextState)
+void enterState(enum state_enum nextState)
 {
   digitalWrite(LEDPIN, LOW);
   
   switch(nextState) {
     case stateStartup:
-      {
-        startupEnter();
-        return 0;
-      }
+      startupEnter();
     case stateDaytime:
-      return daytimeEnter();
+      daytimeEnter();
     case stateDusk:
-      return duskEnter();
+      duskEnter();
     case stateNightPre:
-      return nightPreEnter();
+      nightPreEnter();
     case stateNightStart:
-      return nightStartEnter();
+      nightStartEnter();
     case stateNightEvent:
-      return nightEventEnter();
-    default:
-      return -1;
+      nightEventEnter();
   }  
 }
 
-void startupEnter(void)   { recentFix.fixValid = 0;   activateGPS(); }
-int daytimeEnter(void)    {                         deactivateGPS(); return 0; }
-int duskEnter(void)       { recentFix.fixValid = 0;   activateGPS(); return 0; }
-int nightPreEnter(void)   {                         deactivateGPS(); return 0; }
-int nightStartEnter(void) {                           activateGPS(); return 0; }
-int nightEventEnter(void) {                           activateGPS(); return 0; }
+void startupEnter(void)    { recentFix.fixValid = 0;   activateGPS(); }
+void daytimeEnter(void)    {                         deactivateGPS(); }
+void duskEnter(void)       { recentFix.fixValid = 0;   activateGPS(); }
+void nightPreEnter(void)   {                         deactivateGPS(); }
+void nightStartEnter(void) {                           activateGPS(); }
+void nightEventEnter(void) {                           activateGPS(); }
 
 enum state_enum startupLoop(void) {
   unsigned long now = millis();
