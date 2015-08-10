@@ -12,29 +12,32 @@
 
 #define RATE 9600
 
+#define TESTING 1
+
 /* N.B. 02:49 August 31st UTC = Sunday nightfall
  * Pre-event
  */
 #ifndef TESTING
-# define DUSK_START       7740 /* 19:04 PDT = 02:04 UTC */
-# define NIGHT_START     10140 /* 19:49 PDT = 02:49 UTC */
-# define EVENT_START_SEC 25200 /* 00:00 PDT = 07:00 UTC */
-# define NIGHT_END       46800 /* 06:00 PDT = 13:00 UTC */
+# define DUSK_START       7740L /* 19:04 PDT = 02:04 UTC */
+# define NIGHT_START     10140L /* 19:49 PDT = 02:49 UTC */
+# define EVENT_START_SEC 25200L /* 00:00 PDT = 07:00 UTC */
+# define NIGHT_END       46800L /* 06:00 PDT = 13:00 UTC */
 /* 10 hours and 11 minutes of blinky each day */
 # define EVENT_START_DAY 242 /* August 31st in UTC-land */
 #else
-# define DUSK_START       7740 /* 19:04 PDT = 02:04 UTC */
-# define NIGHT_START     10140 /* 19:49 PDT = 02:49 UTC */
+# define DUSK_START      (00L*3600L + 26L*60L)
+# define NIGHT_START     (00L*3600L + 27L*60L)
 # define EVENT_START_SEC 25200 /* 00:00 PDT = 07:00 UTC */
-# define NIGHT_END       46800 /* 06:00 PDT = 13:00 UTC */
+# define NIGHT_END       (00L*3600L + 28L*60L)
 /* 10 hours and 11 minutes of blinky each day */
-# define EVENT_START_DAY 242 /* August 31st in UTC-land */
+# define EVENT_START_DAY 212 /* August 31st in UTC-land */
 #endif
+
 
 TinySerial serialGPS = TinySerial(RXPIN, TXPIN);
 
 volatile unsigned long lastPulseMs;
-volatile unsigned int pulsesSinceFix;
+volatile unsigned long pulsesSinceFix;
 
 #define BUFLEN 128
 char buffer[BUFLEN];
@@ -55,12 +58,12 @@ struct fix_struct {
 struct fix_struct recentFix;
 
 enum state_enum {
-  stateStartup,
-  stateDaytime,
-  stateDusk,
-  stateNightPre,
-  stateNightStart,
-  stateNightEvent
+  stateStartup,    /* A */
+  stateDaytime,    /* B */
+  stateDusk,       /* C */
+  stateNightPre,   /* D */
+  stateNightStart, /* E */
+  stateNightEvent  /* F */
 };
 
 enum state_enum currentState;
@@ -80,6 +83,21 @@ int duskEnter(void);
 int nightPreEnter(void);
 int nightStartEnter(void);
 int nightEventEnter(void);
+
+#if TESTING
+unsigned long lastDebug;
+uint8_t inDebug;
+inline void debugDigit(uint8_t x) { serialGPS.write('0' + (x%10)); }
+inline void debugLong(uint32_t x) { 
+  debugDigit((x / 1000000L) % 10); 
+  debugDigit((x / 100000L) % 10); 
+  debugDigit((x / 10000L) % 10); 
+  debugDigit((x / 1000L) % 10); 
+  debugDigit((x / 100L) % 10); 
+  debugDigit((x / 10L) % 10); 
+  debugDigit(x % 10); 
+}
+#endif
 
 void setup() {
   pinMode(RXPIN, INPUT);
@@ -105,6 +123,15 @@ void setup() {
 
   currentState = stateStartup;
   startupEnter();
+
+#if TESTING
+  lastDebug = 0;
+  inDebug = false;
+  serialGPS.write('H');
+  serialGPS.write('i');
+  serialGPS.write('\r');
+  serialGPS.write('\n');
+#endif
 }
 
 #define MAX_PULSE_WAIT   1100
@@ -113,10 +140,44 @@ void setup() {
 #define UNSYNCH_INTERVAL 2500L
 
 void loop(void) {
+#if TESTING
+  unsigned long now = millis();
+  if (now - lastDebug > 1000L) {
+    inDebug = true;
+    lastDebug = now;
+  } else {
+    inDebug = false;
+  }
+
+  if (inDebug) {
+    serialGPS.write('A' + currentState);
+  }
+#endif
+  
   enum state_enum nextState = stateLoop(currentState);
 
+#if TESTING
+  if (inDebug) {
+    serialGPS.write('\r');
+    serialGPS.write('\n');
+  }
+#endif
+
   if (nextState != currentState) {
+#if TESTING
+    serialGPS.write('A' + currentState);
+    serialGPS.write('a' + nextState);
+    serialGPS.write('\r');
+    serialGPS.write('\n');
+#endif
+
     if (enterState(nextState) < 0) {
+#if TESTING
+      serialGPS.write('A' + currentState);
+      serialGPS.write('x');
+      serialGPS.write('\r');
+      serialGPS.write('\n');
+#endif
       currentState = stateStartup;
       startupEnter();
     } else {
@@ -198,11 +259,10 @@ enum state_enum startupLoop(void) {
 
 enum state_enum daytimeLoop(void) {
   if (recentFix.fixValid) {
-    unsigned long now = millis();
-    unsigned long extraSeconds = (now - recentFix.fixReceiveMs) / 1000L;
-    struct datetime_struct nowDateTime = recentFix.fixDateTime;
-    addSeconds(&nowDateTime, (unsigned int) extraSeconds);
-    if (nowDateTime.secondInDay < DUSK_START || nowDateTime.secondInDay > NIGHT_END) {
+    struct datetime_struct nowDateTime;
+    estimateNow(&nowDateTime);
+
+    if ((nowDateTime.secondInDay < DUSK_START) || (nowDateTime.secondInDay >= NIGHT_END)) {
       return stateDaytime;
     } else { /* Always switch to dusk in order to get a good GPS fix */
       return stateDusk;
@@ -278,28 +338,11 @@ enum state_enum nightEventLoop(void)
 
   if (nowDateTime.secondInDay >= NIGHT_END || nowDateTime.secondInDay < DUSK_START) {
     return stateDaytime;
+  } else {
+    return stateNightEvent;
   }
 }
 
-#define RMC_HOUR_TENS 7
-#define RMC_HOUR_ONES 8
-#define RMC_MINUTE_TENS 9
-#define RMC_MINUTE_ONES 10
-#define RMC_SECOND_TENS 11
-#define RMC_SECOND_ONES 12
-
-#define RMC_VALIDITY 17
-
-#define RMC_DAY_TENS 53
-#define RMC_DAY_ONES 54
-#define RMC_MONTH_TENS 55
-#define RMC_MONTH_ONES 56
-
-#define RMC_MIN_LEN 57
-
-#define NMONTHS 12
-int monthFirstDate[NMONTHS] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-                             /* J  F   M   A   M    Jun  Jul  A    S    O    N    D */
 // Can't drain all serial input on one loop -- blocks too long, miss cycles through updateBlink
 void serialLoop(void)
 {
@@ -327,25 +370,46 @@ void serialLoop(void)
   }
 }
 
+#define RMC_HOUR_TENS 7
+#define RMC_HOUR_ONES 8
+#define RMC_MINUTE_TENS 9
+#define RMC_MINUTE_ONES 10
+#define RMC_SECOND_TENS 11
+#define RMC_SECOND_ONES 12
+
+#define RMC_VALIDITY 17
+
+#define RMC_DAY_TENS 53
+#define RMC_DAY_ONES 54
+#define RMC_MONTH_TENS 55
+#define RMC_MONTH_ONES 56
+
+#define RMC_MIN_LEN 57
+
+#define NMONTHS 12
+int monthFirstDate[NMONTHS] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+                             /* J  F   M   A   M    Jun  Jul  A    S    O    N    D */
+
 void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 {
+  pulsesSinceFix = 0;
   fupd->fixReceiveMs = millis();
 
-  long secondInMinute = (buffer[RMC_SECOND_TENS] - '0') * 10 + (buffer[RMC_SECOND_ONES] - '0');
-  long minuteInHour = (buffer[RMC_MINUTE_TENS] - '0') * 10 + (buffer[RMC_MINUTE_ONES] - '0');
-  long hourInDay = (buffer[RMC_HOUR_TENS] - '0') * 10 + (buffer[RMC_HOUR_ONES] - '0');
-  fupd->fixDateTime.secondInDay = secondInMinute = 60 * (minuteInHour + (60 * hourInDay));
-  int dayInMonth = (buffer[RMC_DAY_TENS] - '0') * 10 + (buffer[RMC_DAY_ONES] - '0') - 1;
-  int monthInYear = (buffer[RMC_MONTH_TENS] - '0') * 10 + (buffer[RMC_MONTH_ONES] - '0') - 1;
+  unsigned long secondInMinute = (buffer[RMC_SECOND_TENS] - '0') * 10 + (buffer[RMC_SECOND_ONES] - '0');
+  unsigned long minuteInHour = (buffer[RMC_MINUTE_TENS] - '0') * 10 + (buffer[RMC_MINUTE_ONES] - '0');
+  unsigned long hourInDay = (buffer[RMC_HOUR_TENS] - '0') * 10 + (buffer[RMC_HOUR_ONES] - '0');
+  fupd->fixDateTime.secondInDay = secondInMinute + 60 * (minuteInHour + (60 * hourInDay));
+  unsigned int dayInMonth = (buffer[RMC_DAY_TENS] - '0') * 10 + (buffer[RMC_DAY_ONES] - '0') - 1;
+  unsigned int monthInYear = (buffer[RMC_MONTH_TENS] - '0') * 10 + (buffer[RMC_MONTH_ONES] - '0') - 1;
   fupd->fixDateTime.dayInYear = monthFirstDate[monthInYear] + dayInMonth;
 
   fupd->fixValid = (buffer[RMC_VALIDITY] == 'A');
 }
 
-#define SECONDS_IN_DAY 86400
-void addSeconds(struct datetime_struct *dt, unsigned int nsecs)
+#define SECONDS_IN_DAY 86400L
+void addSeconds(struct datetime_struct *dt, unsigned long nsecs)
 {
-  dt->secondInDay += (long) nsecs;
+  dt->secondInDay += nsecs;
   while (dt->secondInDay >= SECONDS_IN_DAY) {
     dt->secondInDay -= SECONDS_IN_DAY;
     dt->dayInYear++;
@@ -355,13 +419,29 @@ void addSeconds(struct datetime_struct *dt, unsigned int nsecs)
 void estimateNow(struct datetime_struct *nowDateTime)
 {
   unsigned long now = millis();
+  unsigned long extraSeconds = 
+    (now < lastPulseMs + MAX_PULSE_WAIT) ? 
+    pulsesSinceFix : 
+    ((now - recentFix.fixReceiveMs) / 1000L);
+
   *nowDateTime = recentFix.fixDateTime;
 
-  if (now < lastPulseMs + MAX_PULSE_WAIT) {    
-    addSeconds(nowDateTime, pulsesSinceFix);
-  } else {
-    addSeconds(nowDateTime, ((unsigned int) ((now - lastPulseMs) / 1000L)));
-  }
+  addSeconds(nowDateTime, extraSeconds);
+
+#if TESTING
+    if (inDebug) {
+      serialGPS.write((now < lastPulseMs + MAX_PULSE_WAIT) ? 'S' : 'U');
+      debugLong(extraSeconds);
+      serialGPS.write(' ');
+      debugLong(recentFix.fixDateTime.secondInDay);
+      serialGPS.write(' ');
+      debugLong(nowDateTime->secondInDay);
+      serialGPS.write(' ');
+      debugLong(DUSK_START);
+      serialGPS.write(' ');
+      debugLong(NIGHT_END);
+    }
+#endif    
 }
 
 inline uint8_t dtSecond(const datetime_struct *dt) { return (uint8_t) (dt->secondInDay % 60); }
