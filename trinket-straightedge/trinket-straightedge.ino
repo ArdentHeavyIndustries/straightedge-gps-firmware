@@ -250,7 +250,7 @@ enum state_enum startupLoop(void) {
     return stateStartup;
   }
 
-  if (recentFix.fixDateTime.secondInDay < DUSK_START || recentFix.fixDateTime.secondInDay > NIGHT_END) {
+  if (recentFix.fixDateTime.secondInDay < DUSK_START || recentFix.fixDateTime.secondInDay >= NIGHT_END) {
     return stateDaytime;
   } else {
     return stateDusk;
@@ -407,9 +407,9 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 }
 
 #define SECONDS_IN_DAY 86400L
-void addSeconds(struct datetime_struct *dt, unsigned long nsecs)
+void addSeconds(struct datetime_struct *dt, unsigned long extraSeconds)
 {
-  dt->secondInDay += nsecs;
+  dt->secondInDay += extraSeconds;
   while (dt->secondInDay >= SECONDS_IN_DAY) {
     dt->secondInDay -= SECONDS_IN_DAY;
     dt->dayInYear++;
