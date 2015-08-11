@@ -1,13 +1,13 @@
 #ifndef TRINKET_STRAIGHTEDGE_H
 #define TRINKET_STRAIGHTEDGE_H 1
 
-#define TESTING 1
+#define TESTING 0
 
 /* Times and dates for 
 /* N.B. 02:49 August 31st UTC = Sunday nightfall
  * Pre-event
  */
-#ifndef TESTING
+#if 0
 # define DUSK_START       7740L /* 19:04 PDT = 02:04 UTC */
 # define NIGHT_START     10140L /* 19:49 PDT = 02:49 UTC */
 # define EVENT_START_SEC 25200L /* 00:00 PDT = 07:00 UTC */
@@ -15,10 +15,10 @@
 /* 10 hours and 11 minutes of blinky each day */
 # define EVENT_START_DAY 242 /* August 31st in UTC-land */
 #else
-# define DUSK_START      (06L*3600L + 56L*60L)
-# define NIGHT_START     (06L*3600L + 57L*60L)
-# define EVENT_START_SEC (06L*3600L + 58L*60L)
-# define NIGHT_END       (06L*3600L + 59L*60L)
+# define DUSK_START      (10L*3600L + 13L*60L)
+# define NIGHT_START     (11L*3600L + 15L*60L)
+# define EVENT_START_SEC (12L*3600L + 17L*60L)
+# define NIGHT_END       (13L*3600L + 19L*60L)
 /* Tuesday Aug 11 = 222 */
 # define EVENT_START_DAY 222
 #endif
