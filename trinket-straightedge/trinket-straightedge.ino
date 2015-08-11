@@ -3,36 +3,7 @@
 #include <stdlib.h>
 
 #include "TinySerial.h"
-
-#define RXPIN 0
-#define ENABLEPIN 1
-#define PPSPIN 2
-#define TXPIN 3
-#define LEDPIN 4
-
-#define RATE 9600
-
-#define TESTING 1
-
-/* N.B. 02:49 August 31st UTC = Sunday nightfall
- * Pre-event
- */
-#ifndef TESTING
-# define DUSK_START       7740L /* 19:04 PDT = 02:04 UTC */
-# define NIGHT_START     10140L /* 19:49 PDT = 02:49 UTC */
-# define EVENT_START_SEC 25200L /* 00:00 PDT = 07:00 UTC */
-# define NIGHT_END       46800L /* 06:00 PDT = 13:00 UTC */
-/* 10 hours and 11 minutes of blinky each day */
-# define EVENT_START_DAY 242 /* August 31st in UTC-land */
-#else
-# define DUSK_START      (00L*3600L + 26L*60L)
-# define NIGHT_START     (00L*3600L + 27L*60L)
-# define EVENT_START_SEC 25200 /* 00:00 PDT = 07:00 UTC */
-# define NIGHT_END       (00L*3600L + 28L*60L)
-/* 10 hours and 11 minutes of blinky each day */
-# define EVENT_START_DAY 212 /* August 31st in UTC-land */
-#endif
-
+#include "trinket-straightedge.h"
 
 TinySerial serialGPS = TinySerial(RXPIN, TXPIN);
 
@@ -44,45 +15,9 @@ char buffer[BUFLEN];
 int bufpos;
 bool inSentence;
 
-struct datetime_struct {
-  long secondInDay;
-  int dayInYear;
-};
-
-struct fix_struct {
-  struct datetime_struct fixDateTime;
-  unsigned long fixReceiveMs;
-  uint8_t fixValid;
-};
-
 struct fix_struct recentFix;
 
-enum state_enum {
-  stateStartup,    /* A */
-  stateDaytime,    /* B */
-  stateDusk,       /* C */
-  stateNightPre,   /* D */
-  stateNightStart, /* E */
-  stateNightEvent  /* F */
-};
-
 enum state_enum currentState;
-
-enum state_enum stateLoop(enum state_enum);
-enum state_enum startupLoop(void);
-enum state_enum daytimeLoop(void);
-enum state_enum duskLoop(void);
-enum state_enum nightPreLoop(void);
-enum state_enum nightStartLoop(void);
-enum state_enum nightEventLoop(void);
-
-void enterState(enum state_enum nextState);
-void startupEnter(void); /* Can't fail! */
-void daytimeEnter(void);
-void duskEnter(void);
-void nightPreEnter(void);
-void nightStartEnter(void);
-void nightEventEnter(void);
 
 #if TESTING
 unsigned long lastDebug;
@@ -203,17 +138,17 @@ void enterState(enum state_enum nextState)
   
   switch(nextState) {
     case stateStartup:
-      startupEnter();
+      return startupEnter();
     case stateDaytime:
-      daytimeEnter();
+      return daytimeEnter();
     case stateDusk:
-      duskEnter();
+      return duskEnter();
     case stateNightPre:
-      nightPreEnter();
+      return nightPreEnter();
     case stateNightStart:
-      nightStartEnter();
+      return nightStartEnter();
     case stateNightEvent:
-      nightEventEnter();
+      return nightEventEnter();
   }  
 }
 
@@ -225,6 +160,7 @@ void nightStartEnter(void) {                           activateGPS(); }
 void nightEventEnter(void) {                           activateGPS(); }
 
 enum state_enum startupLoop(void) {
+  /* Dim LED heart-beat every other second during start-up */
   unsigned long now = millis();
   unsigned int cycle = (now / 32L) % 64L;
   int bright = (cycle < 8) ? cycle : ((cycle < 16) ? 16 - cycle : 0);
@@ -248,7 +184,7 @@ enum state_enum daytimeLoop(void) {
 
     if ((nowDateTime.secondInDay < DUSK_START) || (nowDateTime.secondInDay >= NIGHT_END)) {
       return stateDaytime;
-    } else { /* Always switch to dusk in order to get a good GPS fix */
+    } else { /* Switch from daytime to dusk and never directly to night, in order to get a good GPS fix */
       return stateDusk;
     }
   } else { /* No idea what time it is! */
@@ -354,6 +290,8 @@ void serialLoop(void)
   }
 }
 
+/* Byte offsets into $GPRMC message for information we want */
+/* UTC time */
 #define RMC_HOUR_TENS 7
 #define RMC_HOUR_ONES 8
 #define RMC_MINUTE_TENS 9
@@ -361,8 +299,10 @@ void serialLoop(void)
 #define RMC_SECOND_TENS 11
 #define RMC_SECOND_ONES 12
 
+/* UTC validity, A = valid, V = questionable */
 #define RMC_VALIDITY 17
 
+/* UTC date */
 #define RMC_DAY_TENS 53
 #define RMC_DAY_ONES 54
 #define RMC_MONTH_TENS 55
@@ -376,6 +316,10 @@ int monthFirstDate[NMONTHS] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304
 
 void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 {
+  if (buflen < RMC_MIN_LEN) {
+    return;
+  }
+  
   pulsesSinceFix = 0;
   fupd->fixReceiveMs = millis();
 
