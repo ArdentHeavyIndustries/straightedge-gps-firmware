@@ -23,6 +23,14 @@
 # define EVENT_START_DAY 222
 #endif
 
+/* Blink configuration */
+#define PULSE_START           100L
+#define PULSE_DUR              40L
+#define UNSYNCH_PRE_PERIOD   2500L
+#define PRE_PULSE_DUR          20L
+#define UNSYNCH_START_PERIOD 2000L
+#define START_PULSE_DUR        30L
+
 /* Hardware configuration:
  * PPSPIN must be 2 for INT0 external interrupt
  */
@@ -34,6 +42,11 @@
 
 /* Serial comm with GPS */
 #define RATE 9600
+
+/* Max milliseconds to wait for PPS pulse
+ * before falling back on internal clock
+ */
+#define MAX_PULSE_WAIT   1100
 
 /* Data structure for date & time, always in UTC */
 struct datetime_struct {

@@ -69,11 +69,6 @@ void setup() {
 #endif
 }
 
-#define MAX_PULSE_WAIT   1100
-#define PULSE_START       100
-#define PULSE_DUR          40
-#define UNSYNCH_INTERVAL 2500L
-
 void loop(void) {
 #if TESTING
   unsigned long now = millis();
@@ -212,19 +207,16 @@ enum state_enum duskLoop(void)
   }
 }
 
-inline void unsynchedBlink(void) {
-  unsigned long now = millis();
-  unsigned long millisInInterval = now % UNSYNCH_INTERVAL;
-  digitalWrite(LEDPIN, ((millisInInterval >= PULSE_START) && (millisInInterval < (PULSE_START + PULSE_DUR))) ? HIGH : LOW);  
-}
-
 enum state_enum nightPreLoop(void) 
 {
   struct datetime_struct nowDateTime;
   estimateNow(&nowDateTime);
 
-  unsynchedBlink();
-
+  if (nowDateTime.secondInDay >= NIGHT_START) {
+    unsigned long millisInPeriod = millis() % UNSYNCH_PRE_PERIOD;
+    digitalWrite(LEDPIN, ((millisInPeriod >= PULSE_START) && (millisInPeriod < (PULSE_START + PRE_PULSE_DUR))) ? HIGH : LOW);
+  }
+  
   if (nowDateTime.secondInDay >= NIGHT_END) {
     return stateDaytime;
   } else {
@@ -236,8 +228,11 @@ enum state_enum nightStartLoop(void) {
   struct datetime_struct nowDateTime;
   estimateNow(&nowDateTime);
 
-  unsynchedBlink();
-
+  if (nowDateTime.secondInDay >= NIGHT_START) {
+    unsigned long millisInPeriod = millis() % UNSYNCH_START_PERIOD;
+    digitalWrite(LEDPIN, ((millisInPeriod >= PULSE_START) && (millisInPeriod < (PULSE_START + START_PULSE_DUR))) ? HIGH : LOW);
+  }
+  
   if (nowDateTime.secondInDay >= NIGHT_END || nowDateTime.secondInDay < DUSK_START) {
     return stateDaytime;
   } else if (nowDateTime.secondInDay >= EVENT_START_SEC) {
