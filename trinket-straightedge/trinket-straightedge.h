@@ -15,12 +15,12 @@
 /* 10 hours and 11 minutes of blinky each day */
 # define EVENT_START_DAY 242 /* August 31st in UTC-land */
 #else
-# define DUSK_START      (05L*3600L + 40L*60L)
-# define NIGHT_START     (05L*3600L + 41L*60L)
-# define EVENT_START_SEC 25200 /* 00:00 PDT = 07:00 UTC */
-# define NIGHT_END       (05L*3600L + 42L*60L)
+# define DUSK_START      (06L*3600L + 56L*60L)
+# define NIGHT_START     (06L*3600L + 57L*60L)
+# define EVENT_START_SEC (06L*3600L + 58L*60L)
+# define NIGHT_END       (06L*3600L + 59L*60L)
 /* Tuesday Aug 11 = 222 */
-# define EVENT_START_DAY 223
+# define EVENT_START_DAY 222
 #endif
 
 /* Hardware configuration:

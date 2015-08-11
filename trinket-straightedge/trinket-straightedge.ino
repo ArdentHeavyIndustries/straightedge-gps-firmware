@@ -214,7 +214,7 @@ enum state_enum duskLoop(void)
 
 inline void unsynchedBlink(void) {
   unsigned long now = millis();
-  unsigned long millisInInterval = (now - lastPulseMs) % UNSYNCH_INTERVAL;
+  unsigned long millisInInterval = now % UNSYNCH_INTERVAL;
   digitalWrite(LEDPIN, ((millisInInterval >= PULSE_START) && (millisInInterval < (PULSE_START + PULSE_DUR))) ? HIGH : LOW);  
 }
 
@@ -368,6 +368,10 @@ void estimateNow(struct datetime_struct *nowDateTime)
       debugLong(DUSK_START);
       serialGPS.write(' ');
       debugLong(NIGHT_END);
+      serialGPS.write(' ');
+      debugLong(nowDateTime->dayInYear);
+      serialGPS.write(' ');
+      debugLong(EVENT_START_DAY);
     }
 #endif    
 }
