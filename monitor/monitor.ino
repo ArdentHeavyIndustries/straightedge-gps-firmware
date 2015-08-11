@@ -3,17 +3,18 @@
 
 struct change_struct {
   unsigned long changems;
-  unsigned long changeus;
   unsigned char ledPin;
   unsigned char enablePin;
-  unsigned char isLedIsr;
-  unsigned char isEnableIsr;
+  unsigned char isr;
 };
 
 #define NCHANGES 32
 struct change_struct changes[NCHANGES];
 int serialChangePtr;       // Points ot next change to be printed to serial
 volatile int isrChangePtr; // Points to next change to be used by ISR
+
+#define PERIODIC_STATUS 60000
+unsigned long lastStatusMs = 0;
 
 void setup() {
   pinMode(LEDPIN, INPUT);
@@ -36,19 +37,34 @@ void loop() {
 
     Serial.print(chg->changems);
     Serial.write('\t');
-    Serial.print(chg->changeus);
-    Serial.write('\t');
     Serial.print((int) chg->ledPin);
     Serial.write('\t');
     Serial.print((int) chg->enablePin);
+    Serial.write('\t');
+    Serial.write(chg->isr);
     Serial.println();    
+  }
+
+  unsigned long now = millis();
+  if (now > lastStatusMs + PERIODIC_STATUS) {
+    int led = digitalRead(LEDPIN);
+    int enable = digitalRead(ENABLEPIN);
+    Serial.print(now);
+    Serial.write('\t');
+    Serial.print(led);
+    Serial.write('\t');
+    Serial.print(enable);
+    Serial.write('\t');
+    Serial.write('P');
+    Serial.println();
+    lastStatusMs = now;    
   }
 }
 
-void ledIsr(void) { addChange(1, 0); }
-void enableIsr(void) { addChange(0, 1); }
+void ledIsr(void) { addChange('L'); }
+void enableIsr(void) { addChange('E'); }
 
-void addChange(int isLed, int isEnable)
+void addChange(unsigned char isr)
 {
   struct change_struct *chg = &(changes[isrChangePtr]);
   isrChangePtr++;
@@ -57,10 +73,8 @@ void addChange(int isLed, int isEnable)
   }
 
   chg->changems = millis();
-  chg->changeus = micros();
   chg->ledPin = digitalRead(LEDPIN);
   chg->enablePin = digitalRead(ENABLEPIN);
-  chg->isLedIsr = isLed;
-  chg->isEnableIsr = isEnable;
+  chg->isr = isr;
 }
 
