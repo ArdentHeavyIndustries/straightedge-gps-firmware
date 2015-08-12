@@ -3,9 +3,14 @@
 
 #define TESTING 0
 
-/* Times and dates for 
+/* Times and dates for Burning Man 2015
 /* N.B. 02:49 August 31st UTC = Sunday nightfall
- * Pre-event
+ * State machine requires dusk+night don't cross midnight UTC
+ * 
+ * 1% clock skew => 15 minutes in 24 hours
+ * GPS cold-start fix in <30 minutes
+ * Nominal 45 minute "dusk" period allows 15 minute fast drift 
+ * (i.e., 30 minutes real dusk period) and GPS fix before night.
  */
 #if 0
 # define DUSK_START       7740L /* 19:04 PDT = 02:04 UTC */

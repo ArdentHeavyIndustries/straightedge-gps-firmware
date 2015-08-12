@@ -167,7 +167,7 @@ enum state_enum startupLoop(void) {
 
   if (recentFix.fixDateTime.secondInDay < DUSK_START || recentFix.fixDateTime.secondInDay >= NIGHT_END) {
     return stateDaytime;
-  } else {
+  } else { /* Jump from startup into dusk and let dusk state switch into night -- keeps all logic to pick which night state in one function */
     return stateDusk;
   }
 }
@@ -198,6 +198,7 @@ enum state_enum duskLoop(void)
     } else if (nowDateTime.secondInDay < NIGHT_START) {
       return stateDusk;
     } else if (nowDateTime.dayInYear == EVENT_START_DAY) {
+      /* Note -- this runs one cycle of nightStart even if we're switch out of dusk after the event start time */
       return stateNightStart;
     } else {
       return stateNightEvent;
@@ -286,6 +287,11 @@ void serialLoop(void)
 }
 
 /* Byte offsets into $GPRMC message for information we want */
+
+/* $GPRMC,062908.00,A,3746.81259,N,12224.40523,W,1.277,,050815,,,A* */
+/* 0123456789012345678901234567890123456789012345678901234567890123 */
+/* 0         1         2         3         4         5         6    */
+
 /* UTC time */
 #define RMC_HOUR_TENS 7
 #define RMC_HOUR_ONES 8
