@@ -1,17 +1,21 @@
 #define LEDPIN 2
 #define ENABLEPIN 3
+// On Arduino Uno, pin #2 is PD2 and pin #3 is PD3
+// Port D input register is PIND, bit masks are 0x04 and 0x08
+volatile uint8_t *pinsRegister;
+uint8_t ledPinMask;
+uint8_t enablePinMask;
 
 struct change_struct {
   unsigned long changems;
-  unsigned char ledPin;
-  unsigned char enablePin;
+  uint8_t pind;
   unsigned char isr;
 };
 
 #define NCHANGES 32
 struct change_struct changes[NCHANGES];
-int serialChangePtr;       // Points ot next change to be printed to serial
-volatile int isrChangePtr; // Points to next change to be used by ISR
+uint8_t serialChangePtr;       // Points ot next change to be printed to serial
+volatile uint8_t isrChangePtr; // Points to next change to be used by ISR
 
 #define PERIODIC_STATUS 60000
 unsigned long lastStatusMs = 0;
@@ -21,10 +25,19 @@ void setup() {
   isrChangePtr = 0;
   serialChangePtr = 0;
 
+  pinsRegister = portInputRegister(digitalPinToPort(LEDPIN));  
+  ledPinMask = digitalPinToBitMask(LEDPIN);
+  enablePinMask = digitalPinToBitMask(ENABLEPIN);
+
   attachInterrupt(0, ledIsr, CHANGE);
   attachInterrupt(1, enableIsr, CHANGE);
 
   Serial.begin(9600);
+
+  if (pinsRegister != portInputRegister(digitalPinToPort(ENABLEPIN))) {
+    Serial.println("!!! LED and enable pins on different ports");
+    enablePinMask = 0;
+  }
 }
 
 void loop() {
@@ -37,9 +50,9 @@ void loop() {
 
     Serial.print(chg->changems);
     Serial.write('\t');
-    Serial.print((int) chg->ledPin);
+    Serial.print((chg->pind & ledPinMask) ? '1' : '0');
     Serial.write('\t');
-    Serial.print((int) chg->enablePin);
+    Serial.print((chg->pind & enablePinMask) ? '1' : '0');
     Serial.write('\t');
     Serial.write(chg->isr);
     Serial.println();    
@@ -61,20 +74,26 @@ void loop() {
   }
 }
 
-void ledIsr(void) { addChange('L'); }
-void enableIsr(void) { addChange('E'); }
-
-void addChange(unsigned char isr)
-{
+// Avoid function call overhead to the extent possible in ISRs
+// N.B. millis() relies on a private volatile counter in wiring
+void ledIsr(void) 
+{ 
   struct change_struct *chg = &(changes[isrChangePtr]);
-  isrChangePtr++;
-  if (isrChangePtr >= NCHANGES) {
-    isrChangePtr = 0;
-  }
+  isrChangePtr = (isrChangePtr + 1) % NCHANGES;
 
   chg->changems = millis();
-  chg->ledPin = digitalRead(LEDPIN);
-  chg->enablePin = digitalRead(ENABLEPIN);
-  chg->isr = isr;
+  chg->pind = *pinsRegister;
+  chg->isr = 'L';
 }
+  
+void enableIsr(void)
+{
+  struct change_struct *chg = &(changes[isrChangePtr]);
+  isrChangePtr = (isrChangePtr + 1) % NCHANGES;
+
+  chg->changems = millis();
+  chg->pind = *pinsRegister;
+  chg->isr = 'E';
+}
+
 
