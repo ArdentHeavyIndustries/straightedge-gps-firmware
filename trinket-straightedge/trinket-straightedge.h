@@ -1,7 +1,8 @@
 #ifndef TRINKET_STRAIGHTEDGE_H
 #define TRINKET_STRAIGHTEDGE_H 1
 
-#define TESTING 0
+#define TESTING 1
+#define ARDUINO_UNO 1
 
 /* Times and dates for Burning Man 2015
 /* N.B. 02:49 August 31st UTC = Sunday nightfall
@@ -44,6 +45,13 @@
 #define PPSPIN    2 /* Pulse-per-second GPS->trinket */
 #define TXPIN     3 /* trinket->GPS serial */
 #define LEDPIN    4 /* LED control, high = on */
+
+#if ARDUINO_UNO
+/* ARDUINO */
+# define RXPIN     5
+# define LEDPIN    6
+# define ENABLEPIN 7
+#endif
 
 /* Serial comm with GPS */
 #define RATE 9600

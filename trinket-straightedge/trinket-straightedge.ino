@@ -19,11 +19,19 @@ struct fix_struct recentFix;
 
 enum state_enum currentState;
 
+#if TESTING
+#if ARDUINO_UNO
+# define DEBUGSERIAL Serial
+#else
+# define DEBUGSERIAL serialGPS
+#endif
 /* Should be DEBUG-only */
 unsigned long lastDebug;
 uint8_t inDebug;
-void debugDigit(uint8_t x) { serialGPS.write('0' + (x%10)); }
+void debugDigit(uint8_t x) { DEBUGSERIAL.write('0' + (x%10)); }
 void debugLong(uint32_t x) { 
+  debugDigit((x / 100000000L) % 10); 
+  debugDigit((x / 10000000L) % 10); 
   debugDigit((x / 1000000L) % 10); 
   debugDigit((x / 100000L) % 10); 
   debugDigit((x / 10000L) % 10); 
@@ -32,6 +40,7 @@ void debugLong(uint32_t x) {
   debugDigit((x / 10L) % 10); 
   debugDigit(x % 10); 
 }
+#endif
 
 void setup() {
   pinMode(RXPIN, INPUT);
@@ -61,10 +70,15 @@ void setup() {
 #if TESTING
   lastDebug = 0;
   inDebug = false;
-  serialGPS.write('H');
-  serialGPS.write('i');
-  serialGPS.write('\r');
-  serialGPS.write('\n');
+  DEBUGSERIAL.write('H');
+  DEBUGSERIAL.write('i');
+  DEBUGSERIAL.write('\r');
+  DEBUGSERIAL.write('\n');
+#endif
+
+#if ARDUINO_UNO
+  Serial.begin(9600);
+  Serial.write("Arduino Uno xXx test code");
 #endif
 }
 
@@ -79,7 +93,7 @@ void loop(void) {
   }
 
   if (inDebug) {
-    serialGPS.write('A' + currentState);
+    DEBUGSERIAL.write('A' + currentState);
   }
 #endif
   
@@ -87,17 +101,17 @@ void loop(void) {
 
 #if TESTING
   if (inDebug) {
-    serialGPS.write('\r');
-    serialGPS.write('\n');
+    DEBUGSERIAL.write('\r');
+    DEBUGSERIAL.write('\n');
   }
 #endif
 
   if (nextState != currentState) {
 #if TESTING
-    serialGPS.write('A' + currentState);
-    serialGPS.write('a' + nextState);
-    serialGPS.write('\r');
-    serialGPS.write('\n');
+    DEBUGSERIAL.write('A' + currentState);
+    DEBUGSERIAL.write('a' + nextState);
+    DEBUGSERIAL.write('\r');
+    DEBUGSERIAL.write('\n');
 #endif
     enterState(nextState);
     currentState = nextState;
@@ -370,10 +384,28 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
     + ((unsigned long) (buffer[RMC_LONGIMIN_FIFTH] - '0')) * 10L;
 
 #if TESTING
+  for (int i = 0; i < buflen; i++) {
+    DEBUGSERIAL.write(buffer[i]);
+  }
+  DEBUGSERIAL.write('\r');
+  DEBUGSERIAL.write('\n');
+  
+  debugLong(fupd->fixReceiveMs);
+  DEBUGSERIAL.write(' ');
+
+  debugLong(fupd->fixDateTime.secondInDay);
+  DEBUGSERIAL.write(' ');
+
+  debugLong(extra);
+  DEBUGSERIAL.write(' ');
+
+  debugLong(fupd->fixDateTime.dayInYear);
+  DEBUGSERIAL.write(' ');
+
   debugLong(fupd->fixLongiUMin);
 
-  serialGPS.write('\r');
-  serialGPS.write('\n');
+  DEBUGSERIAL.write('\r');
+  DEBUGSERIAL.write('\n');
 #endif
 }
 
@@ -401,19 +433,19 @@ void estimateNow(struct datetime_struct *nowDateTime)
 
 #if TESTING
     if (inDebug) {
-      serialGPS.write((now < lastPulseMs + MAX_PULSE_WAIT) ? 'S' : 'U');
+      DEBUGSERIAL.write((now < lastPulseMs + MAX_PULSE_WAIT) ? 'S' : 'U');
       debugLong(extraSeconds);
-      serialGPS.write(' ');
+      DEBUGSERIAL.write(' ');
       debugLong(recentFix.fixDateTime.secondInDay);
-      serialGPS.write(' ');
+      DEBUGSERIAL.write(' ');
       debugLong(nowDateTime->secondInDay);
-      serialGPS.write(' ');
+      DEBUGSERIAL.write(' ');
       debugLong(DUSK_START);
-      serialGPS.write(' ');
+      DEBUGSERIAL.write(' ');
       debugLong(NIGHT_END);
-      serialGPS.write(' ');
+      DEBUGSERIAL.write(' ');
       debugLong(nowDateTime->dayInYear);
-      serialGPS.write(' ');
+      DEBUGSERIAL.write(' ');
       debugLong(EVENT_START_DAY);
     }
 #endif    
