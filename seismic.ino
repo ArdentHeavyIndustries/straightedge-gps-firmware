@@ -13,8 +13,8 @@ unsigned long x0 = 10845360; // longitude minutes of first post, times 1,000,000
 unsigned int longiInterval = 7680; //longitude interval between any two stakes, in longitude minutes * 1,000,000
 
 // am i going in the right direction? (should be positive...)
-unsigned int swaveOffset = (( longiMinutes - x0 ) / longiInterval ) * swaveInterval;
-unsigned int pwaveOffset = (( longiMinutes - x0 ) / longiInterval ) * pwaveInterval;
+unsigned long swaveOffset = (( longiMinutes - x0 ) / longiInterval ) * swaveInterval;
+unsigned long pwaveOffset = (( longiMinutes - x0 ) / longiInterval ) * pwaveInterval;
   
 unsigned int clearWindow = 250; // clear out a window of 500 ms 'around' the animated LED
 
