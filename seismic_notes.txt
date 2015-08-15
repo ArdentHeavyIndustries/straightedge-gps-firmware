@@ -1,3 +1,9 @@
+https://docs.google.com/spreadsheets/d/1CT_LNAaMf-9v3a6IHFaSOiXDCC1DUdTH3UsWY7A_910/edit#gid=0
+   first longitude = -119.180756 degrees = 119 degrees 10.84536 longitude minutes
+   x_0 =  10.84536 * 1000000 = 10,845,360
+   second longitude = -119.180884 degrees = 119 degrees 10.85304 longitude minutes
+   longitude difference = -0.000128 degrees = -0.00768 longitude minutes
+
 Seismic wave speeds on playa, from Morley:
 shear wave: **1000** - 1111 fps
 pressure wave: ***1666** - 1850 fps
@@ -8,30 +14,28 @@ stakes are 0.05 s = 50 ms apart
 1666 fps:
 stakes are 0.03 s = 30 ms apart
 
-delta x = 0.0001636 degrees = 0.009816'
+delta x = 0.000128 degrees = 0.00768 longitude minutes
 x0 -----------
               |
    	      |
               x1
 
 
-(x - x0) / 0.009816 = stake number
+(x - x0) / 0.00768 = stake number
 
-( (x - x0) / 0.009816 ) * 50 = blink offset
+( (x - x0) / 0.00768 ) * 50 = blink offset
 
 multiply everything by 1,000,000 to make integers:
 
 ******************
-(( x * 1000000 - x_0 * 1000000 ) / 9816 ) * 50
+(( x * 1000000 - x_0 * 1000000 ) / 7680 ) * 50
 blink offset for shear wave
 
-(( x * 1000000 - x_0 * 1000000 ) / 9816 ) * 30
+(( x * 1000000 - x_0 * 1000000 ) / 7680 ) * 30
 blink offset for pressure wave
 ******************
 
 Move from east to west from the low end of Straightedge to the high end.
-
-x0 = 119 deg 11.347524' ??? check this
 
 
 Animation:
@@ -40,3 +44,4 @@ The slow wave takes 14 seconds to travel the length of Straightedge.
 Every 5 minutes?
 
 While animating, set other lights to be very dim.
+
