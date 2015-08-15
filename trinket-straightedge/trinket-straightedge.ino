@@ -79,6 +79,17 @@ void setup() {
 #if ARDUINO_UNO
   Serial.begin(9600);
   Serial.write("Arduino Uno xXx test code");
+
+  char test1[BUFLEN] = "$GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,46.73,050815,,,A*";
+  char test2[BUFLEN] = "$GPRMC,062908.00,A,3746.81259,N,12224.40523,W,1.277,,050815,,,A*";
+  char test3[BUFLEN] = "$GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,146.73,050815,,,A*";
+  char test4[BUFLEN] = "$GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,9146.73,050815,,,A*";
+
+  struct fix_struct test_fix;
+  updateFixFromNmea(&test_fix, test1, strlen(test1));
+  updateFixFromNmea(&test_fix, test2, strlen(test2));
+  updateFixFromNmea(&test_fix, test3, strlen(test3));
+  updateFixFromNmea(&test_fix, test4, strlen(test4));
 #endif
 }
 
@@ -326,6 +337,7 @@ void serialLoop(void)
 /* UTC date */
 #define RMC_SPEED_START   46
 #define RMC_HEADING_START 52
+#define RMC_HEADING_MAXLEN 6
 #define RMC_DAY_TENS_NOHEADING    53
 #define RMC_DAY_ONES_NOHEADING    54
 #define RMC_MONTH_TENS_NOHEADING  55
@@ -367,8 +379,12 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
   fupd->fixValid = (buffer[RMC_VALIDITY] == 'A');
 
   int extra = 0;
-  if (buffer[RMC_HEADING_START] != ',') {
-    extra = RMC_HEADING_EXTRA;
+  while (buffer[RMC_HEADING_START + extra] != ',') {
+    extra++;
+    if (extra > RMC_HEADING_MAXLEN) {
+      fupd->fixValid = 0;
+      return;
+    }
   }
   
   unsigned int dayInMonth = (buffer[extra + RMC_DAY_TENS_NOHEADING] - '0') * 10 + (buffer[extra + RMC_DAY_ONES_NOHEADING] - '0') - 1;

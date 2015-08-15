@@ -1,8 +1,8 @@
 #ifndef TRINKET_STRAIGHTEDGE_H
 #define TRINKET_STRAIGHTEDGE_H 1
 
-#define TESTING 1
-#define ARDUINO_UNO 1
+#define TESTING 0
+#define ARDUINO_UNO 0
 
 /* Times and dates for Burning Man 2015
 /* N.B. 02:49 August 31st UTC = Sunday nightfall
@@ -131,4 +131,5 @@ void nightPreEnter(void);
 void nightStartEnter(void);
 void nightEventEnter(void);
 
+void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen);
 #endif
