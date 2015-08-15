@@ -83,13 +83,15 @@ void setup() {
   char test1[BUFLEN] = "$GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,46.73,050815,,,A*";
   char test2[BUFLEN] = "$GPRMC,062908.00,A,3746.81259,N,12224.40523,W,1.277,,050815,,,A*";
   char test3[BUFLEN] = "$GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,146.73,050815,,,A*";
-  char test4[BUFLEN] = "$GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,9146.73,050815,,,A*";
+  char test4[BUFLEN] = "$GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,6.73,050815,,,A*";
+  char test5[BUFLEN] = "$GPRMC,081618.00,A,3746.78884,N,12224.42742,W,11.085,225.66,150815,,,A*";
 
   struct fix_struct test_fix;
   updateFixFromNmea(&test_fix, test1, strlen(test1));
   updateFixFromNmea(&test_fix, test2, strlen(test2));
   updateFixFromNmea(&test_fix, test3, strlen(test3));
   updateFixFromNmea(&test_fix, test4, strlen(test4));
+  updateFixFromNmea(&test_fix, test5, strlen(test5));
 #endif
 }
 
@@ -296,12 +298,13 @@ void serialLoop(void)
     if (inSentence) {
       buffer[bufpos] = c;
       bufpos++;
-      if (bufpos > BUFLEN) {
+      if (bufpos >= BUFLEN) {
         inSentence = false;
       }
     }
 
     if (c == '*') {
+      buffer[bufpos] = 0;
       inSentence = false;
       if (strncmp(buffer, "$GPRMC", 6) == 0) {        
         updateFixFromNmea(&recentFix, buffer, bufpos);
@@ -335,14 +338,12 @@ void serialLoop(void)
 #define RMC_SECOND_ONES 12
 
 /* UTC date */
-#define RMC_SPEED_START   46
-#define RMC_HEADING_START 52
-#define RMC_HEADING_MAXLEN 6
-#define RMC_DAY_TENS_NOHEADING    53
-#define RMC_DAY_ONES_NOHEADING    54
-#define RMC_MONTH_TENS_NOHEADING  55
-#define RMC_MONTH_ONES_NOHEADING  56
-#define RMC_HEADING_EXTRA          5
+#define RMC_SPEED_START 46
+#define RMC_DAY_TENS     0
+#define RMC_DAY_ONES     1
+#define RMC_MONTH_TENS   2
+#define RMC_MONTH_ONES   3
+#define RMC_DATE_LAST    5
 
 /* Longitude */
 #define RMC_DEGREE_HUNDREDS   32
@@ -364,6 +365,14 @@ int monthFirstDate[NMONTHS] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304
 
 void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 {
+#if TESTING
+  for (int i = 0; i < buflen; i++) {
+    DEBUGSERIAL.write(buffer[i]);
+  }
+  DEBUGSERIAL.write('\r');
+  DEBUGSERIAL.write('\n');
+#endif
+
   if (buflen < RMC_MIN_LEN) {
     return;
   }
@@ -378,17 +387,20 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 
   fupd->fixValid = (buffer[RMC_VALIDITY] == 'A');
 
-  int extra = 0;
-  while (buffer[RMC_HEADING_START + extra] != ',') {
-    extra++;
-    if (extra > RMC_HEADING_MAXLEN) {
-      fupd->fixValid = 0;
-      return;
+  uint8_t dateStart = RMC_SPEED_START;
+  for (uint8_t field = 1; field <= 2; field++) {
+    while (buffer[dateStart] != ',') {
+      dateStart++;
+      if ((dateStart + RMC_DATE_LAST) >= buflen) {
+        fupd->fixValid = 0;
+        return;
+      }
     }
+    dateStart++;
   }
   
-  unsigned int dayInMonth = (buffer[extra + RMC_DAY_TENS_NOHEADING] - '0') * 10 + (buffer[extra + RMC_DAY_ONES_NOHEADING] - '0') - 1;
-  unsigned int monthInYear = (buffer[extra + RMC_MONTH_TENS_NOHEADING] - '0') * 10 + (buffer[extra + RMC_MONTH_ONES_NOHEADING] - '0') - 1;
+  unsigned int dayInMonth = (buffer[dateStart + RMC_DAY_TENS] - '0') * 10 + (buffer[dateStart + RMC_DAY_ONES] - '0') - 1;
+  unsigned int monthInYear = (buffer[dateStart + RMC_MONTH_TENS] - '0') * 10 + (buffer[dateStart + RMC_MONTH_ONES] - '0') - 1;
   fupd->fixDateTime.dayInYear = monthFirstDate[monthInYear] + dayInMonth;
 
   fupd->fixLongiUMin = ((unsigned long) (buffer[RMC_LONGIMIN_TENS] - '0')) * 10000000L
@@ -399,20 +411,14 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
     + ((unsigned long) (buffer[RMC_LONGIMIN_FOURTH] - '0')) * 100L
     + ((unsigned long) (buffer[RMC_LONGIMIN_FIFTH] - '0')) * 10L;
 
-#if TESTING
-  for (int i = 0; i < buflen; i++) {
-    DEBUGSERIAL.write(buffer[i]);
-  }
-  DEBUGSERIAL.write('\r');
-  DEBUGSERIAL.write('\n');
-  
+#if TESTING  
   debugLong(fupd->fixReceiveMs);
   DEBUGSERIAL.write(' ');
 
   debugLong(fupd->fixDateTime.secondInDay);
   DEBUGSERIAL.write(' ');
 
-  debugLong(extra);
+  debugLong(dateStart);
   DEBUGSERIAL.write(' ');
 
   debugLong(fupd->fixDateTime.dayInYear);
@@ -426,15 +432,6 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 }
 
 #define SECONDS_IN_DAY 86400L
-void addSeconds(struct datetime_struct *dt, unsigned long extraSeconds)
-{
-  dt->secondInDay += extraSeconds;
-  while (dt->secondInDay >= SECONDS_IN_DAY) {
-    dt->secondInDay -= SECONDS_IN_DAY;
-    dt->dayInYear++;
-  }
-}
-
 void estimateNow(struct datetime_struct *nowDateTime)
 {
   unsigned long now = millis();
@@ -445,7 +442,11 @@ void estimateNow(struct datetime_struct *nowDateTime)
 
   *nowDateTime = recentFix.fixDateTime;
 
-  addSeconds(nowDateTime, extraSeconds);
+  nowDateTime->secondInDay += extraSeconds;
+  while (nowDateTime->secondInDay >= SECONDS_IN_DAY) {
+    nowDateTime->secondInDay -= SECONDS_IN_DAY;
+    nowDateTime->dayInYear++;
+  }
 
 #if TESTING
     if (inDebug) {

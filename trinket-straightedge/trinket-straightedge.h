@@ -1,8 +1,8 @@
 #ifndef TRINKET_STRAIGHTEDGE_H
 #define TRINKET_STRAIGHTEDGE_H 1
 
-#define TESTING 0
-#define ARDUINO_UNO 0
+#define TESTING 1
+#define ARDUINO_UNO 1
 
 /* Times and dates for Burning Man 2015
 /* N.B. 02:49 August 31st UTC = Sunday nightfall
@@ -21,10 +21,10 @@
 /* 10 hours and 11 minutes of blinky each day */
 # define EVENT_START_DAY 242 /* August 31st in UTC-land */
 #else
-# define DUSK_START      (2L*3600L + 4L*60L)
-# define NIGHT_START     (2L*3600L + 49L*60L)
-# define EVENT_START_SEC (7L*3600L + 0L*60L)
-# define NIGHT_END       (13L*3600L + 0L*60L)
+# define DUSK_START      (14L*3600L + 4L*60L)
+# define NIGHT_START     (14L*3600L + 49L*60L)
+# define EVENT_START_SEC (15L*3600L + 0L*60L)
+# define NIGHT_END       (23L*3600L + 59L*60L)
 /* Tuesday Aug 11 = 222 */
 # define EVENT_START_DAY 225
 #endif
