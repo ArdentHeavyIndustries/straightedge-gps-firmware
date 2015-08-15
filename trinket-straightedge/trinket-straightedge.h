@@ -20,12 +20,12 @@
 /* 10 hours and 11 minutes of blinky each day */
 # define EVENT_START_DAY 242 /* August 31st in UTC-land */
 #else
-# define DUSK_START      (10L*3600L + 13L*60L)
-# define NIGHT_START     (11L*3600L + 15L*60L)
-# define EVENT_START_SEC (12L*3600L + 17L*60L)
-# define NIGHT_END       (13L*3600L + 19L*60L)
+# define DUSK_START      (2L*3600L + 4L*60L)
+# define NIGHT_START     (2L*3600L + 49L*60L)
+# define EVENT_START_SEC (7L*3600L + 0L*60L)
+# define NIGHT_END       (13L*3600L + 0L*60L)
 /* Tuesday Aug 11 = 222 */
-# define EVENT_START_DAY 222
+# define EVENT_START_DAY 225
 #endif
 
 /* Blink configuration */
@@ -64,7 +64,11 @@ struct datetime_struct {
 /* GPS fix data: UTC time from fix, along with internal clock time it was received */
 struct fix_struct {
   struct datetime_struct fixDateTime;
+  /* Microminutes of longitude */
+  unsigned long fixLongiUMin;
+  /* Onboard clock ms when fix was received */
   unsigned long fixReceiveMs;
+  /* True iff the fix is valid A not V */
   uint8_t fixValid;
 };
 

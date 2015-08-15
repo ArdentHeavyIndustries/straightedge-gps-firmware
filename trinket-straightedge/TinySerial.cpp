@@ -57,12 +57,22 @@ typedef struct _DELAY_TABLE
   unsigned short tx_delay;
 } DELAY_TABLE;
 
-#if F_CPU == 8000000
+#if F_CPU == 16000000
+
+static const DELAY_TABLE PROGMEM table[] = 
+{
+  //  baud    rxcenter   rxintra    rxstop    tx
+    { 9600,     114,       236,       236,      233,   }  
+};
+
+const int XMIT_START_ADJUSTMENT = 5;
+
+#elif F_CPU == 8000000
 
 static const DELAY_TABLE table[] PROGMEM = 
 {
   //  baud    rxcenter    rxintra    rxstop  tx
-  { 9600,     50,         114,       114,    112,    },
+  { 9600,     50,         114,       114,    112,    }
 };
 
 const int XMIT_START_ADJUSTMENT = 4;

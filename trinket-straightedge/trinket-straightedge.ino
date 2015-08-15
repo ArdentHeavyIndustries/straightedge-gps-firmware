@@ -19,11 +19,11 @@ struct fix_struct recentFix;
 
 enum state_enum currentState;
 
-#if TESTING
+/* Should be DEBUG-only */
 unsigned long lastDebug;
 uint8_t inDebug;
-inline void debugDigit(uint8_t x) { serialGPS.write('0' + (x%10)); }
-inline void debugLong(uint32_t x) { 
+void debugDigit(uint8_t x) { serialGPS.write('0' + (x%10)); }
+void debugLong(uint32_t x) { 
   debugDigit((x / 1000000L) % 10); 
   debugDigit((x / 100000L) % 10); 
   debugDigit((x / 10000L) % 10); 
@@ -32,7 +32,6 @@ inline void debugLong(uint32_t x) {
   debugDigit((x / 10L) % 10); 
   debugDigit(x % 10); 
 }
-#endif
 
 void setup() {
   pinMode(RXPIN, INPUT);
@@ -228,12 +227,12 @@ enum state_enum nightPreLoop(void)
 enum state_enum nightStartLoop(void) {
   struct datetime_struct nowDateTime;
   estimateNow(&nowDateTime);
-
+/*
   if (nowDateTime.secondInDay >= NIGHT_START) {
     unsigned long millisInPeriod = millis() % UNSYNCH_START_PERIOD;
     digitalWrite(LEDPIN, ((millisInPeriod >= PULSE_START) && (millisInPeriod < (PULSE_START + START_PULSE_DUR))) ? HIGH : LOW);
   }
-  
+  */
   if (nowDateTime.secondInDay >= NIGHT_END || nowDateTime.secondInDay < DUSK_START) {
     return stateDaytime;
   } else if (nowDateTime.secondInDay >= EVENT_START_SEC) {
@@ -288,9 +287,19 @@ void serialLoop(void)
 
 /* Byte offsets into $GPRMC message for information we want */
 
+/* $GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,46.73,050815,,,A* */
+/* 01234567890123456789012345678901234567890123456789012345678901234567  */
+/* 0         1         2         3         4         5         6         */
 /* $GPRMC,062908.00,A,3746.81259,N,12224.40523,W,1.277,,050815,,,A* */
 /* 0123456789012345678901234567890123456789012345678901234567890123 */
 /* 0         1         2         3         4         5         6    */
+
+/* $GPRMC,045628.00,V,,,,,,,150815,,,N*78 */
+/* 01234567890123456789012345678901234567 */
+/* 0         1         2         3        */
+
+/* UTC validity, A = valid, V = questionable */
+#define RMC_VALIDITY 17
 
 /* UTC time */
 #define RMC_HOUR_TENS 7
@@ -300,14 +309,26 @@ void serialLoop(void)
 #define RMC_SECOND_TENS 11
 #define RMC_SECOND_ONES 12
 
-/* UTC validity, A = valid, V = questionable */
-#define RMC_VALIDITY 17
-
 /* UTC date */
-#define RMC_DAY_TENS 53
-#define RMC_DAY_ONES 54
-#define RMC_MONTH_TENS 55
-#define RMC_MONTH_ONES 56
+#define RMC_SPEED_START   46
+#define RMC_HEADING_START 52
+#define RMC_DAY_TENS_NOHEADING    53
+#define RMC_DAY_ONES_NOHEADING    54
+#define RMC_MONTH_TENS_NOHEADING  55
+#define RMC_MONTH_ONES_NOHEADING  56
+#define RMC_HEADING_EXTRA          5
+
+/* Longitude */
+#define RMC_DEGREE_HUNDREDS   32
+#define RMC_DEGREE_TENS       33
+#define RMC_DEGREE_ONES       34
+#define RMC_LONGIMIN_TENS     35
+#define RMC_LONGIMIN_ONES     36
+#define RMC_LONGIMIN_FIRST    38
+#define RMC_LONGIMIN_SECOND   39
+#define RMC_LONGIMIN_THIRD    40
+#define RMC_LONGIMIN_FOURTH   41
+#define RMC_LONGIMIN_FIFTH    42
 
 #define RMC_MIN_LEN 57
 
@@ -328,11 +349,32 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
   unsigned long minuteInHour = (buffer[RMC_MINUTE_TENS] - '0') * 10 + (buffer[RMC_MINUTE_ONES] - '0');
   unsigned long hourInDay = (buffer[RMC_HOUR_TENS] - '0') * 10 + (buffer[RMC_HOUR_ONES] - '0');
   fupd->fixDateTime.secondInDay = secondInMinute + 60 * (minuteInHour + (60 * hourInDay));
-  unsigned int dayInMonth = (buffer[RMC_DAY_TENS] - '0') * 10 + (buffer[RMC_DAY_ONES] - '0') - 1;
-  unsigned int monthInYear = (buffer[RMC_MONTH_TENS] - '0') * 10 + (buffer[RMC_MONTH_ONES] - '0') - 1;
-  fupd->fixDateTime.dayInYear = monthFirstDate[monthInYear] + dayInMonth;
 
   fupd->fixValid = (buffer[RMC_VALIDITY] == 'A');
+
+  int extra = 0;
+  if (buffer[RMC_HEADING_START] != ',') {
+    extra = RMC_HEADING_EXTRA;
+  }
+  
+  unsigned int dayInMonth = (buffer[extra + RMC_DAY_TENS_NOHEADING] - '0') * 10 + (buffer[extra + RMC_DAY_ONES_NOHEADING] - '0') - 1;
+  unsigned int monthInYear = (buffer[extra + RMC_MONTH_TENS_NOHEADING] - '0') * 10 + (buffer[extra + RMC_MONTH_ONES_NOHEADING] - '0') - 1;
+  fupd->fixDateTime.dayInYear = monthFirstDate[monthInYear] + dayInMonth;
+
+  fupd->fixLongiUMin = ((unsigned long) (buffer[RMC_LONGIMIN_TENS] - '0')) * 10000000L
+    + ((unsigned long) (buffer[RMC_LONGIMIN_ONES] - '0')) * 1000000L
+    + ((unsigned long) (buffer[RMC_LONGIMIN_FIRST] - '0')) * 100000L
+    + ((unsigned long) (buffer[RMC_LONGIMIN_SECOND] - '0')) * 10000L
+    + ((unsigned long) (buffer[RMC_LONGIMIN_THIRD] - '0')) * 1000L
+    + ((unsigned long) (buffer[RMC_LONGIMIN_FOURTH] - '0')) * 100L
+    + ((unsigned long) (buffer[RMC_LONGIMIN_FIFTH] - '0')) * 10L;
+
+#if TESTING
+  debugLong(fupd->fixLongiUMin);
+
+  serialGPS.write('\r');
+  serialGPS.write('\n');
+#endif
 }
 
 #define SECONDS_IN_DAY 86400L
