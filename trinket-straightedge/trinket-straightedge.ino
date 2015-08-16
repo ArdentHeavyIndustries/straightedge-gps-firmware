@@ -12,19 +12,19 @@ volatile unsigned long pulsesSinceFix;
 
 #define BUFLEN 128
 char buffer[BUFLEN];
-int bufpos;
-bool inSentence;
+uint8_t bufpos;
+uint8_t inSentence;
 
 struct fix_struct recentFix;
 
 enum state_enum currentState;
 
 #if TESTING
-#if ARDUINO_UNO
-# define DEBUGSERIAL Serial
-#else
-# define DEBUGSERIAL serialGPS
-#endif
+# if ARDUINO_UNO
+#  define DEBUGSERIAL Serial
+# else
+#  define DEBUGSERIAL serialGPS
+# endif
 /* Should be DEBUG-only */
 unsigned long lastDebug;
 uint8_t inDebug;
@@ -254,12 +254,12 @@ enum state_enum nightPreLoop(void)
 enum state_enum nightStartLoop(void) {
   struct datetime_struct nowDateTime;
   estimateNow(&nowDateTime);
-/*
+
   if (nowDateTime.secondInDay >= NIGHT_START) {
     unsigned long millisInPeriod = millis() % UNSYNCH_START_PERIOD;
     digitalWrite(LEDPIN, ((millisInPeriod >= PULSE_START) && (millisInPeriod < (PULSE_START + START_PULSE_DUR))) ? HIGH : LOW);
   }
-  */
+
   if (nowDateTime.secondInDay >= NIGHT_END || nowDateTime.secondInDay < DUSK_START) {
     return stateDaytime;
   } else if (nowDateTime.secondInDay >= EVENT_START_SEC) {
@@ -274,9 +274,9 @@ enum state_enum nightEventLoop(void)
   struct datetime_struct nowDateTime;
   estimateNow(&nowDateTime);
 
-  unsigned long now = millis();
-  unsigned long millisInSecond = (now - lastPulseMs) % 1000L;
-  digitalWrite(LEDPIN, ((millisInSecond >= PULSE_START) && (millisInSecond < (PULSE_START + PULSE_DUR))) ? HIGH : LOW);
+  digitalWrite(LEDPIN, ((nowDateTime.millisInSecond >= PULSE_START) && 
+                        (nowDateTime.millisInSecond < (PULSE_START + PULSE_DUR))) 
+                       ? HIGH : LOW);
 
   if (nowDateTime.secondInDay >= NIGHT_END || nowDateTime.secondInDay < DUSK_START) {
     return stateDaytime;
@@ -441,6 +441,8 @@ void estimateNow(struct datetime_struct *nowDateTime)
     ((now - recentFix.fixReceiveMs) / 1000L);
 
   *nowDateTime = recentFix.fixDateTime;
+
+  nowDateTime->millisInSecond = (unsigned int) ((now - lastPulseMs) % 1000L);
 
   nowDateTime->secondInDay += extraSeconds;
   while (nowDateTime->secondInDay >= SECONDS_IN_DAY) {

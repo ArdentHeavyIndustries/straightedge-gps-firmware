@@ -79,7 +79,7 @@ const int XMIT_START_ADJUSTMENT = 4;
 
 #else
 
-#error This tinified version of SoftwareSerial supports only 8MHz processors
+#error This tinified version of SoftwareSerial supports only 8MHz and 16MHz processors
 
 #endif
 

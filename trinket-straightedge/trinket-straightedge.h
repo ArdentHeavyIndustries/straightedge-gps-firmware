@@ -1,8 +1,8 @@
 #ifndef TRINKET_STRAIGHTEDGE_H
 #define TRINKET_STRAIGHTEDGE_H 1
 
-#define TESTING 1
-#define ARDUINO_UNO 1
+#define TESTING 0
+#define ARDUINO_UNO 0
 
 /* Times and dates for Burning Man 2015
 /* N.B. 02:49 August 31st UTC = Sunday nightfall
@@ -63,6 +63,8 @@
 
 /* Data structure for date & time, always in UTC */
 struct datetime_struct {
+  /* Milliseconds into the second, 0 - 999 */
+  unsigned int millisInSecond;
   /* Seconds since midnight UTC, 0 - 86399 */
   long secondInDay;
   /* Days since 1 January, in UTC */
