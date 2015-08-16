@@ -1,5 +1,7 @@
 #include<SoftwareSerial.h>
 
+// MANY OF THESE DID NOT WORK AS INTENDED.
+
 // turn on the GPS in powersave mode.
 // blink once per second forever.
 // doesn't stop for daytime, doesn't read in the GPS.
@@ -72,12 +74,6 @@ void loop() {
   // is it blinking twice per second, or once?
 }
 
-// Send a byte array of UBX protocol to the GPS
-void sendUBX(uint8_t *MSG, uint8_t len) {
-  for(int i=0; i<len; i++) {
-    serialGPS.write(MSG[i]);
-  }
-}
 
 void setupPowerSaveMode() {
   //  sendUBX( setupPSM, 52 );
