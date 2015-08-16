@@ -281,7 +281,8 @@ enum state_enum nightEventLoop(void)
   // check if this works as intended
   unsigned long msNow = ( dtSecond(&nowDateTime) * 1000 ) + ((unsigned long) nowDateTime.millisInSecond);
 
-  if (msNow > 15000) {
+  if ((dtMinute(&nowDateTime) % SEISMIC_INTERVAL) ||
+      msNow > SEISMIC_TOTAL_TIME) {
     // not in animation phase - proceed normally
 
     digitalWrite(LEDPIN, ((nowDateTime.millisInSecond >= PULSE_START) && (nowDateTime.millisInSecond < (PULSE_START + PULSE_DUR))) ? HIGH : LOW);
