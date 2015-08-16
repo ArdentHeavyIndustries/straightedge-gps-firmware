@@ -281,6 +281,8 @@ enum state_enum nightEventLoop(void)
   // check if this works as intended
   unsigned long msNow = ( dtSecond(&nowDateTime) * 1000 ) + ((unsigned long) nowDateTime.millisInSecond);
 
+
+
   if ((dtMinute(&nowDateTime) % SEISMIC_INTERVAL) ||
       msNow > SEISMIC_TOTAL_TIME) {
     // not in animation phase - proceed normally
@@ -481,6 +483,9 @@ void estimateNow(struct datetime_struct *nowDateTime)
 #if TESTING
     if (inDebug) {
       DEBUGSERIAL.write((now < lastPulseMs + MAX_PULSE_WAIT) ? 'S' : 'U');
+      DEBUGSERIAL.write(' ');
+      debugLong(nowDateTime->millisInSecond);
+      DEBUGSERIAL.write(' ');
       debugLong(extraSeconds);
       DEBUGSERIAL.write(' ');
       debugLong(recentFix.fixDateTime.secondInDay);
