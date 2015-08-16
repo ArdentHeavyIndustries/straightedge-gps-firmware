@@ -275,18 +275,16 @@ enum state_enum nightEventLoop(void)
   estimateNow(&nowDateTime);
 
   // am i going in the right direction? (should be positive...)
-  unsigned long swaveOffset = (( recentFix.fixLongiUMin - x0 ) / LONG_INTERVAL ) * SWAVE_INTERVAL;
-  unsigned long pwaveOffset = (( recentFix.fixLongiUMin - x0 ) / LONG_INTERVAL ) * PWAVE_INTERVAL;
+  unsigned long swaveOffset = (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * SWAVE_INTERVAL;
+  unsigned long pwaveOffset = (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * PWAVE_INTERVAL;
   
   // check if this works as intended
-  unsigned long msNow = ( dtSecond(nowDateTime) * 1000 ) + millisInSecond;
+  unsigned long msNow = ( dtSecond(&nowDateTime) * 1000 ) + ((unsigned long) nowDateTime.millisInSecond);
 
-  //  digitalWrite(LEDPIN, ((millisInSecond >= PULSE_START) && (millisInSecond < (PULSE_START + PULSE_DUR))) ? HIGH : LOW);
-  
   if (msNow > 15000) {
     // not in animation phase - proceed normally
 
-    digitalWrite(LEDPIN, ((millisInSecond >= PULSE_START) && (millisInSecond < (PULSE_START + PULSE_DUR))) ? HIGH : LOW);
+    digitalWrite(LEDPIN, ((nowDateTime.millisInSecond >= PULSE_START) && (nowDateTime.millisInSecond < (PULSE_START + PULSE_DUR))) ? HIGH : LOW);
  
   } else {
     // EARTHQUAKE!
@@ -294,7 +292,7 @@ enum state_enum nightEventLoop(void)
     if ((msNow < swaveOffset - CLEAR_WINDOW) || (msNow > swaveOffset + CLEAR_WINDOW + SEISMIC_DURATION)) {
       // in animation period, but not currently activated: blink dimly
       
-      analogWrite(LEDPIN, ((millisInSecond >= PULSE_START) && (millisInSecond < (PULSE_START + PULSE_DUR))) ? DIM_INTENSITY : LOW);
+      analogWrite(LEDPIN, ((nowDateTime.millisInSecond >= PULSE_START) && (nowDateTime.millisInSecond < (PULSE_START + PULSE_DUR))) ? DIM_INTENSITY : LOW);
 
     } else if ( (msNow < swaveOffset) || (msNow > swaveOffset + SEISMIC_DURATION) ) {
       // in clearout window: turn off LED
