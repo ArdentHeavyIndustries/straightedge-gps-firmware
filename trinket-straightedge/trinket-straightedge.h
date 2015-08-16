@@ -132,4 +132,18 @@ void nightStartEnter(void);
 void nightEventEnter(void);
 
 void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen);
+
+// seismic animation presets
+#define X0 10845360L // longitude minutes of first post, times 1,000,000
+#define LONG_INTERVAL 7680 //longitude interval between any two stakes, in longitude minutes * 1,000,000
+
+#define SWAVE_INTERVAL 50 // milliseconds between posts for shear wave
+#define PWAVE_INTERVAL 30 // milliseconds between posts for pressure wave;
+
+#define CLEAR_WINDOW 250 // clear out a window of 500 ms around the current animated LED
+#define SEISMIC_DURATION 150 // how long LED stays on when lit during the seismic animation
+
+#define DIM_INTENSITY 32 // intensity of dim LEDs while the animation is happening
+
 #endif
+
