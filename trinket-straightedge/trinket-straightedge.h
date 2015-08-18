@@ -51,7 +51,7 @@
 #define LEDPIN    4 /* LED control, high = on */
 
 #if ARDUINO_UNO
-/* ARDUINO */
+/* UNO change to free up pins 0 & 1 (hdwr serial) and put LED on a PWM pin*/
 # define RXPIN     5
 # define LEDPIN    6
 # define ENABLEPIN 7

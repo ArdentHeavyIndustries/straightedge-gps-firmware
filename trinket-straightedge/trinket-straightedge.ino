@@ -275,10 +275,12 @@ enum state_enum nightEventLoop(void)
   estimateNow(&nowDateTime);
 
   // am i going in the right direction? (should be positive...)
-  unsigned long swaveOffset = (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * SWAVE_INTERVAL;
-  unsigned long pwaveOffset = (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * PWAVE_INTERVAL;
+  // Time offset in milliseconds from start of seismic event to pulse starting at this location
+  unsigned long swaveOffset = PULSE_START_A + (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * SWAVE_INTERVAL;
+  unsigned long pwaveOffset = PULSE_START_A + (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * PWAVE_INTERVAL;
   
   // check if this works as intended
+  // seismic event always starts at the top of a minute
   unsigned long msNow = ( dtSecond(&nowDateTime) * 1000 ) + ((unsigned long) nowDateTime.millisInSecond);
 
   // True iff we're in a "normal" pulse with 
@@ -286,8 +288,8 @@ enum state_enum nightEventLoop(void)
                           ( (nowDateTime.millisInSecond >= PULSE_START_A && nowDateTime.millisInSecond < PULSE_END_A) ||
                             (nowDateTime.millisInSecond >= PULSE_START_B && nowDateTime.millisInSecond < PULSE_END_B) );
 
-  if ((dtMinute(&nowDateTime) % SEISMIC_INTERVAL) ||
-      msNow > SEISMIC_TOTAL_TIME) {
+  if ( (dtMinute(&nowDateTime) % SEISMIC_INTERVAL) ||
+       (msNow > SEISMIC_TOTAL_TIME) ){
     // not in animation phase - proceed normally
 
     digitalWrite(LEDPIN, inNormalPulse ? HIGH : LOW);
@@ -309,6 +311,7 @@ enum state_enum nightEventLoop(void)
     } else {
 
       // it's animation time, but this position isn't currently activated: blink dimly
+      // note that analogWrite 0 is special-cased to digitalWrite LOW already
       analogWrite(LEDPIN, inNormalPulse ? DIM_INTENSITY : LOW);
     }
   }
