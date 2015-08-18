@@ -309,6 +309,12 @@ enum state_enum nightEventLoop(void)
       debugLong(dtMinute(&nowDateTime));
       DEBUGSERIAL(' ');
       debugLong(msNow);
+      DEBUGSERIAL(' ');
+      debugLong(swaveOffset);
+      DEBUGSERIAL(' ');
+      debugLong(pwaveOffset);
+      DEBUGSERIAL('\r');
+      DEBUGSERIAL('\n');
     }
 #endif
     

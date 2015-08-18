@@ -1,10 +1,10 @@
 #ifndef TRINKET_STRAIGHTEDGE_H
 #define TRINKET_STRAIGHTEDGE_H 1
 
-#define TESTING 1
+#define TESTING 0
 #define TESTING_NMEA_PARSE 0
 #define TESTING_TIME 0
-#define TESTING_SEISMIC 1
+#define TESTING_SEISMIC 0
 #define ARDUINO_UNO 1
 
 /* Times and dates for Burning Man 2015
@@ -34,8 +34,8 @@
 
 /* Blink configuration */
 #define PULSE_FREQUENCY         2  // Pulse when seconds % PULSE_FREQUENCY == 0
-#define PULSE_START_A         100L
-#define PULSE_START_B         300L
+#define PULSE_START_A         200L
+#define PULSE_START_B         400L
 #define PULSE_DUR              40L
 #define PULSE_END_A          (PULSE_START_A + PULSE_DUR)
 #define PULSE_END_B          (PULSE_START_B + PULSE_DUR)
@@ -151,9 +151,13 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen);
 
 #define DIM_INTENSITY 32 // intensity of dim LEDs while the animation is happening
 
-#define SEISMIC_INTERVAL 3 // Minutes between seismic waves: happen when (minute-in-hour % SEISMIC_INTERVAL == 0)
+#define SEISMIC_INTERVAL 2 // Minutes between seismic waves: happen when (minute-in-hour % SEISMIC_INTERVAL == 0)
 
 #define SEISMIC_TOTAL_TIME (SWAVE_INTERVAL * 300) // milliseconds of seismic wave mode
 
+// FOR TESTING
+// Longitude of Nick & Liana's house: 122º 25.320000'
+#define X0 25320000L
+#define X0 24320000L
 #endif
 
