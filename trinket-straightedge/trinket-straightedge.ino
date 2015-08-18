@@ -55,7 +55,7 @@ void setup() {
 
   attachInterrupt(0, ppsIsr, RISING);
 
-  TinySerial::begin(RXPIN, TXPIN, RATE);
+  TinySerial::begin(RXPIN, TXPIN);
 
   bufpos = 0;
   inSentence = false;

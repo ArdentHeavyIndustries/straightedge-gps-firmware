@@ -55,10 +55,10 @@ private:
   static uint8_t _transmitBitMask;
   static volatile uint8_t *_transmitPortRegister;
 
-  static uint16_t _rx_delay_centering;
-  static uint16_t _rx_delay_intrabit;
-  static uint16_t _rx_delay_stopbit;
-  static uint16_t _tx_delay;
+  static const uint16_t _rx_delay_centering;
+  static const uint16_t _rx_delay_intrabit;
+  static const uint16_t _rx_delay_stopbit;
+  static const uint16_t _tx_delay;
 
   // static data
   static char _receive_buffer[_SS_MAX_RX_BUFF]; 
@@ -78,9 +78,7 @@ private:
 
 public:
   // public methods
-  static void begin(uint8_t receivePin, uint8_t transmitPin, long speed);
-  static bool listen();
-  static void end();
+  static void begin(uint8_t receivePin, uint8_t transmitPin);
 
   static size_t write(uint8_t byte);
   static int read();

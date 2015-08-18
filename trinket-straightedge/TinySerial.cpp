@@ -45,35 +45,28 @@ http://arduiniana.org.
 #include <avr/pgmspace.h>
 #include <Arduino.h>
 #include "TinySerial.h"
-//
-// Lookup table
-//
-typedef struct _DELAY_TABLE
-{
-  long baud;
-  unsigned short rx_delay_centering;
-  unsigned short rx_delay_intrabit;
-  unsigned short rx_delay_stopbit;
-  unsigned short tx_delay;
-} DELAY_TABLE;
 
 #if F_CPU == 16000000
 
-static const DELAY_TABLE PROGMEM table[] = 
-{
-  //  baud    rxcenter   rxintra    rxstop    tx
-    { 9600,     114,       236,       236,      233,   }  
-};
+  //    baud    rxcenter   rxintra    rxstop    tx
+//    { 9600,     114,       236,       236,      233,   }  
+
+const uint16_t TinySerial::_rx_delay_centering = 114;
+const uint16_t TinySerial::_rx_delay_intrabit = 236;
+const uint16_t TinySerial::_rx_delay_stopbit = 236;
+const uint16_t TinySerial::_tx_delay = 233;
 
 const int XMIT_START_ADJUSTMENT = 5;
 
 #elif F_CPU == 8000000
 
-static const DELAY_TABLE table[] PROGMEM = 
-{
-  //  baud    rxcenter    rxintra    rxstop  tx
-  { 9600,     50,         114,       114,    112,    }
-};
+  //    baud    rxcenter    rxintra    rxstop  tx
+ // { 9600,     50,         114,       114,    112,    }
+
+const uint16_t TinySerial::_rx_delay_centering = 50;
+const uint16_t TinySerial::_rx_delay_intrabit = 114;
+const uint16_t TinySerial::_rx_delay_stopbit = 114;
+const uint16_t TinySerial::_tx_delay = 112;
 
 const int XMIT_START_ADJUSTMENT = 4;
 
@@ -92,10 +85,6 @@ volatile uint8_t *TinySerial::_receivePortRegister;
 uint8_t TinySerial::_transmitBitMask;
 volatile uint8_t *TinySerial::_transmitPortRegister;
 
-uint16_t TinySerial::_rx_delay_centering;
-uint16_t TinySerial::_rx_delay_intrabit;
-uint16_t TinySerial::_rx_delay_stopbit;
-uint16_t TinySerial::_tx_delay;
 
 char TinySerial::_receive_buffer[_SS_MAX_RX_BUFF]; 
 volatile uint8_t TinySerial::_receive_buffer_tail = 0;
@@ -136,17 +125,6 @@ inline void TinySerial::tunedDelay(uint16_t delay) {
     : "+r" (delay), "+a" (tmp)
     : "0" (delay)
     );
-}
-
-// This function sets the current object as the "listening"
-// one and returns true if it replaces another 
-bool TinySerial::listen()
-{
-    uint8_t oldSREG = SREG;
-    cli();
-    _receive_buffer_head = _receive_buffer_tail = 0;
-    SREG = oldSREG;
-    return true;
 }
 
 //
@@ -301,51 +279,28 @@ void TinySerial::setRX(uint8_t rx)
 // Public methods
 //
 
-void TinySerial::begin(uint8_t receivePin, uint8_t transmitPin, long speed)
+void TinySerial::begin(uint8_t receivePin, uint8_t transmitPin)
 {
   setTX(transmitPin);
   setRX(receivePin);
 
-  _rx_delay_centering = _rx_delay_intrabit = _rx_delay_stopbit = _tx_delay = 0;
-
-  for (unsigned i=0; i<sizeof(table)/sizeof(table[0]); ++i)
-  {
-    long baud = pgm_read_dword(&table[i].baud);
-    if (baud == speed)
-    {
-      _rx_delay_centering = pgm_read_word(&table[i].rx_delay_centering);
-      _rx_delay_intrabit = pgm_read_word(&table[i].rx_delay_intrabit);
-      _rx_delay_stopbit = pgm_read_word(&table[i].rx_delay_stopbit);
-      _tx_delay = pgm_read_word(&table[i].tx_delay);
-      break;
-    }
+  // Set up RX interrupts
+  if (digitalPinToPCICR(_receivePin)) {
+    *digitalPinToPCICR(_receivePin) |= _BV(digitalPinToPCICRbit(_receivePin));
+    *digitalPinToPCMSK(_receivePin) |= _BV(digitalPinToPCMSKbit(_receivePin));
   }
-
-  // Set up RX interrupts, but only if we have a valid RX baud rate
-  if (_rx_delay_stopbit)
-  {
-    if (digitalPinToPCICR(_receivePin))
-    {
-      *digitalPinToPCICR(_receivePin) |= _BV(digitalPinToPCICRbit(_receivePin));
-      *digitalPinToPCMSK(_receivePin) |= _BV(digitalPinToPCMSKbit(_receivePin));
-    }
-    tunedDelay(_tx_delay); // if we were low this establishes the end
-  }
+  tunedDelay(_tx_delay); // if we were low this establishes the end
 
 #if _DEBUG
   pinMode(_DEBUG_PIN1, OUTPUT);
   pinMode(_DEBUG_PIN2, OUTPUT);
 #endif
 
-  listen();
+  uint8_t oldSREG = SREG;
+  cli();
+  _receive_buffer_head = _receive_buffer_tail = 0;
+  SREG = oldSREG;
 }
-
-void TinySerial::end()
-{
-  if (digitalPinToPCMSK(_receivePin))
-    *digitalPinToPCMSK(_receivePin) &= ~_BV(digitalPinToPCMSKbit(_receivePin));
-}
-
 
 // Read data from buffer
 int TinySerial::read()

@@ -57,9 +57,6 @@
 # define ENABLEPIN 7
 #endif
 
-/* Serial comm with GPS */
-#define RATE 9600
-
 /* Max milliseconds to wait for PPS pulse
  * before falling back on internal clock
  */
