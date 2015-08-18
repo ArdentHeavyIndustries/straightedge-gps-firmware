@@ -75,6 +75,9 @@ void loop() {
   }
 }
 
+// Safe to access directly in an ISR
+extern volatile unsigned long timer0_millis;
+
 // Avoid function call overhead to the extent possible in ISRs
 // N.B. millis() relies on a private volatile counter in wiring
 void ledIsr(void) 
@@ -82,7 +85,7 @@ void ledIsr(void)
   struct change_struct *chg = &(changes[isrChangePtr]);
   isrChangePtr = (isrChangePtr + 1) % NCHANGES;
 
-  chg->changems = millis();
+  chg->changems = timer0_millis;
   chg->pind = *pinsRegister;
   chg->isr = 'L';
 }
@@ -92,7 +95,7 @@ void enableIsr(void)
   struct change_struct *chg = &(changes[isrChangePtr]);
   isrChangePtr = (isrChangePtr + 1) % NCHANGES;
 
-  chg->changems = millis();
+  chg->changems = timer0_millis;
   chg->pind = *pinsRegister;
   chg->isr = 'E';
 }
