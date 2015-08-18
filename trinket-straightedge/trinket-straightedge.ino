@@ -241,7 +241,7 @@ enum state_enum nightPreLoop(void)
 
   if (nowDateTime.secondInDay >= NIGHT_START) {
     unsigned long millisInPeriod = millis() % UNSYNCH_PRE_PERIOD;
-    digitalWrite(LEDPIN, ((millisInPeriod >= PULSE_START) && (millisInPeriod < (PULSE_START + PRE_PULSE_DUR))) ? HIGH : LOW);
+    digitalWrite(LEDPIN, ((millisInPeriod >= PULSE_START_A) && (millisInPeriod < (PULSE_START_A + PRE_PULSE_DUR))) ? HIGH : LOW);
   }
   
   if (nowDateTime.secondInDay >= NIGHT_END) {
@@ -257,7 +257,7 @@ enum state_enum nightStartLoop(void) {
 
   if (nowDateTime.secondInDay >= NIGHT_START) {
     unsigned long millisInPeriod = millis() % UNSYNCH_START_PERIOD;
-    digitalWrite(LEDPIN, ((millisInPeriod >= PULSE_START) && (millisInPeriod < (PULSE_START + START_PULSE_DUR))) ? HIGH : LOW);
+    digitalWrite(LEDPIN, ((millisInPeriod >= PULSE_START_A) && (millisInPeriod < (PULSE_START_A + START_PULSE_DUR))) ? HIGH : LOW);
   }
 
   if (nowDateTime.secondInDay >= NIGHT_END || nowDateTime.secondInDay < DUSK_START) {
@@ -281,22 +281,27 @@ enum state_enum nightEventLoop(void)
   // check if this works as intended
   unsigned long msNow = ( dtSecond(&nowDateTime) * 1000 ) + ((unsigned long) nowDateTime.millisInSecond);
 
+  // True iff we're in a "normal" pulse with 
+  uint8_t inNormalPulse = (dtSecond(&nowDateTime) % PULSE_FREQUENCY == 0) &&
+                          ( (nowDateTime.millisInSecond >= PULSE_START_A && nowDateTime.millisInSecond < PULSE_END_A) ||
+                            (nowDateTime.millisInSecond >= PULSE_START_B && nowDateTime.millisInSecond < PULSE_END_B) );
+
   if ((dtMinute(&nowDateTime) % SEISMIC_INTERVAL) ||
       msNow > SEISMIC_TOTAL_TIME) {
     // not in animation phase - proceed normally
 
-    digitalWrite(LEDPIN, ((nowDateTime.millisInSecond >= PULSE_START) && (nowDateTime.millisInSecond < (PULSE_START + PULSE_DUR))) ? HIGH : LOW);
+    digitalWrite(LEDPIN, inNormalPulse ? HIGH : LOW);
  
   } else {
     // EARTHQUAKE!
     if ( ((swaveOffset < msNow) && (msNow < swaveOffset + SEISMIC_DURATION)) ||
-	 ((pwaveOffset < msNow) && (msNow < pwaveOffset + SEISMIC_DURATION)) ) {
+	       ((pwaveOffset < msNow) && (msNow < pwaveOffset + SEISMIC_DURATION)) ) {
 
       // animate!: turn on LED. Highest priority.
       digitalWrite(LEDPIN, HIGH); 
       
     } else if ( ((swaveOffset - CLEAR_WINDOW < msNow) && (msNow < swaveOffset + CLEAR_WINDOW + SEISMIC_DURATION)) ||
-		((pwaveOffset - CLEAR_WINDOW < msNow) && (msNow < pwaveOffset + CLEAR_WINDOW + SEISMIC_DURATION)) ) {
+		            ((pwaveOffset - CLEAR_WINDOW < msNow) && (msNow < pwaveOffset + CLEAR_WINDOW + SEISMIC_DURATION)) ) {
       
       // in clearout window: turn off LED
       digitalWrite(LEDPIN, LOW);
@@ -304,7 +309,7 @@ enum state_enum nightEventLoop(void)
     } else {
 
       // it's animation time, but this position isn't currently activated: blink dimly
-      analogWrite(LEDPIN, ((millisInSecond >= PULSE_START) && (millisInSecond < (PULSE_START + PULSE_DUR))) ? DIM_INTENSITY : LOW);
+      analogWrite(LEDPIN, inNormalPulse ? DIM_INTENSITY : LOW);
     }
   }
   

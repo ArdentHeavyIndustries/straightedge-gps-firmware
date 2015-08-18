@@ -30,8 +30,12 @@
 #endif
 
 /* Blink configuration */
-#define PULSE_START           100L
+#define PULSE_FREQUENCY         2  // Pulse when seconds % PULSE_FREQUENCY == 0
+#define PULSE_START_A         100L
+#define PULSE_START_B         300L
 #define PULSE_DUR              40L
+#define PULSE_END_A          (PULSE_START_A + PULSE_DUR)
+#define PULSE_END_B          (PULSE_START_B + PULSE_DUR)
 #define UNSYNCH_PRE_PERIOD   2500L
 #define PRE_PULSE_DUR          20L
 #define UNSYNCH_START_PERIOD 2000L
