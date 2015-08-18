@@ -22,6 +22,7 @@ unsigned long lastStatusMs = 0;
 
 void setup() {
   pinMode(LEDPIN, INPUT);
+  pinMode(ENABLEPIN, INPUT);
   isrChangePtr = 0;
   serialChangePtr = 0;
 
