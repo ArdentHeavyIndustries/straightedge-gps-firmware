@@ -49,7 +49,7 @@ for l in datafile.split("\r\n"):
         else:
             print "%s\t%s\t%s\tLED On" % (formatTime(ledOn + baseTime), formatTime(time + baseTime), formatTime(time - ledOn))
             ledOff = time
-    else:
+    elif change == "E":
         if enable == "1":
             print "%s\t%s\t%s\tENABLE Off" % (formatTime(enableOff + baseTime), formatTime(time + baseTime), formatTime(time - enableOff))
             enableOn = time
