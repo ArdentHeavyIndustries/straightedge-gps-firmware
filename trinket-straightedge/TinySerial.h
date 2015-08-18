@@ -49,20 +49,16 @@ http://arduiniana.org.
 class TinySerial
 {
 private:
-  // per object data
-  uint8_t _receivePin;
-  uint8_t _receiveBitMask;
-  volatile uint8_t *_receivePortRegister;
-  uint8_t _transmitBitMask;
-  volatile uint8_t *_transmitPortRegister;
+  static uint8_t _receivePin;
+  static uint8_t _receiveBitMask;
+  static volatile uint8_t *_receivePortRegister;
+  static uint8_t _transmitBitMask;
+  static volatile uint8_t *_transmitPortRegister;
 
-  uint16_t _rx_delay_centering;
-  uint16_t _rx_delay_intrabit;
-  uint16_t _rx_delay_stopbit;
-  uint16_t _tx_delay;
-
-  uint16_t _buffer_overflow:1;
-  uint16_t _inverse_logic:1;
+  static uint16_t _rx_delay_centering;
+  static uint16_t _rx_delay_intrabit;
+  static uint16_t _rx_delay_stopbit;
+  static uint16_t _tx_delay;
 
   // static data
   static char _receive_buffer[_SS_MAX_RX_BUFF]; 
@@ -71,29 +67,25 @@ private:
   static TinySerial *active_object;
 
   // private methods
-  void recv();
-  uint8_t rx_pin_read();
-  void tx_pin_write(uint8_t pin_state);
-  void setTX(uint8_t transmitPin);
-  void setRX(uint8_t receivePin);
+  static void recv();
+  static uint8_t rx_pin_read();
+  static void tx_pin_write(uint8_t pin_state);
+  static void setTX(uint8_t transmitPin);
+  static void setRX(uint8_t receivePin);
 
   // private static method for timing
   static inline void tunedDelay(uint16_t delay);
 
 public:
   // public methods
-  TinySerial(uint8_t receivePin, uint8_t transmitPin, bool inverse_logic = false);
-  ~TinySerial();
-  void begin(long speed);
-  bool listen();
-  void end();
-  bool isListening() { return this == active_object; }
-  bool overflow() { bool ret = _buffer_overflow; _buffer_overflow = false; return ret; }
+  static void begin(uint8_t receivePin, uint8_t transmitPin, long speed);
+  static bool listen();
+  static void end();
 
-  size_t write(uint8_t byte);
-  int read();
-  int available();
-  void flush();
+  static size_t write(uint8_t byte);
+  static int read();
+  static int available();
+  static void flush();
   
   // public only for easy access by interrupt handlers
   static inline void handle_interrupt();

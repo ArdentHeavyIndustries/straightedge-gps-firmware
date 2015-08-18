@@ -86,7 +86,17 @@ const int XMIT_START_ADJUSTMENT = 4;
 //
 // Statics
 //
-TinySerial *TinySerial::active_object = 0;
+uint8_t TinySerial::_receivePin;
+uint8_t TinySerial::_receiveBitMask;
+volatile uint8_t *TinySerial::_receivePortRegister;
+uint8_t TinySerial::_transmitBitMask;
+volatile uint8_t *TinySerial::_transmitPortRegister;
+
+uint16_t TinySerial::_rx_delay_centering;
+uint16_t TinySerial::_rx_delay_intrabit;
+uint16_t TinySerial::_rx_delay_stopbit;
+uint16_t TinySerial::_tx_delay;
+
 char TinySerial::_receive_buffer[_SS_MAX_RX_BUFF]; 
 volatile uint8_t TinySerial::_receive_buffer_tail = 0;
 volatile uint8_t TinySerial::_receive_buffer_head = 0;
@@ -132,18 +142,11 @@ inline void TinySerial::tunedDelay(uint16_t delay) {
 // one and returns true if it replaces another 
 bool TinySerial::listen()
 {
-  if (active_object != this)
-  {
-    _buffer_overflow = false;
     uint8_t oldSREG = SREG;
     cli();
     _receive_buffer_head = _receive_buffer_tail = 0;
-    active_object = this;
     SREG = oldSREG;
     return true;
-  }
-
-  return false;
 }
 
 //
@@ -172,7 +175,7 @@ void TinySerial::recv()
 
   // If RX line is high, then we don't see any start bit
   // so interrupt is probably not for us
-  if (_inverse_logic ? rx_pin_read() : !rx_pin_read())
+  if (!rx_pin_read())
   {
     // Wait approximately 1/2 of a bit width to "center" the sample
     tunedDelay(_rx_delay_centering);
@@ -194,9 +197,6 @@ void TinySerial::recv()
     tunedDelay(_rx_delay_stopbit);
     DebugPulse(_DEBUG_PIN2, 1);
 
-    if (_inverse_logic)
-      d = ~d;
-
     // if buffer full, set the overflow flag and return
     if ((_receive_buffer_tail + 1) % _SS_MAX_RX_BUFF != _receive_buffer_head) 
     {
@@ -209,7 +209,7 @@ void TinySerial::recv()
 #if _DEBUG // for scope: pulse pin as overflow indictator
       DebugPulse(_DEBUG_PIN1, 1);
 #endif
-      _buffer_overflow = true;
+//      _buffer_overflow = true;
     }
   }
 
@@ -247,13 +247,7 @@ uint8_t TinySerial::rx_pin_read()
 //
 
 /* static */
-inline void TinySerial::handle_interrupt()
-{
-  if (active_object)
-  {
-    active_object->recv();
-  }
-}
+inline void TinySerial::handle_interrupt() { TinySerial::recv(); }
 
 #if defined(PCINT0_vect)
 ISR(PCINT0_vect)
@@ -283,34 +277,10 @@ ISR(PCINT3_vect)
 }
 #endif
 
-//
-// Constructor
-//
-TinySerial::TinySerial(uint8_t receivePin, uint8_t transmitPin, bool inverse_logic /* = false */) : 
-  _rx_delay_centering(0),
-  _rx_delay_intrabit(0),
-  _rx_delay_stopbit(0),
-  _tx_delay(0),
-  _buffer_overflow(false),
-  _inverse_logic(inverse_logic)
-{
-  setTX(transmitPin);
-  setRX(receivePin);
-}
-
-//
-// Destructor
-//
-TinySerial::~TinySerial()
-{
-  end();
-}
-
-
 void TinySerial::setTX(uint8_t tx)
 {
   pinMode(tx, OUTPUT);
-  digitalWrite(tx, _inverse_logic ? LOW : HIGH);
+  digitalWrite(tx, HIGH);
   _transmitBitMask = digitalPinToBitMask(tx);
   uint8_t port = digitalPinToPort(tx);
   _transmitPortRegister = portOutputRegister(port);
@@ -319,8 +289,7 @@ void TinySerial::setTX(uint8_t tx)
 void TinySerial::setRX(uint8_t rx)
 {
   pinMode(rx, INPUT);
-  if (!_inverse_logic)
-    digitalWrite(rx, HIGH);  // pullup for normal logic!
+  digitalWrite(rx, HIGH);  // pullup for normal logic!
   _receivePin = rx;
   _receiveBitMask = digitalPinToBitMask(rx);
   uint8_t port = digitalPinToPort(rx);
@@ -332,8 +301,11 @@ void TinySerial::setRX(uint8_t rx)
 // Public methods
 //
 
-void TinySerial::begin(long speed)
+void TinySerial::begin(uint8_t receivePin, uint8_t transmitPin, long speed)
 {
+  setTX(transmitPin);
+  setRX(receivePin);
+
   _rx_delay_centering = _rx_delay_intrabit = _rx_delay_stopbit = _tx_delay = 0;
 
   for (unsigned i=0; i<sizeof(table)/sizeof(table[0]); ++i)
@@ -378,9 +350,6 @@ void TinySerial::end()
 // Read data from buffer
 int TinySerial::read()
 {
-  if (!isListening())
-    return -1;
-
   // Empty buffer?
   if (_receive_buffer_head == _receive_buffer_tail)
     return -1;
@@ -393,9 +362,6 @@ int TinySerial::read()
 
 int TinySerial::available()
 {
-  if (!isListening())
-    return 0;
-
   return (_receive_buffer_tail + _SS_MAX_RX_BUFF - _receive_buffer_head) % _SS_MAX_RX_BUFF;
 }
 
@@ -410,38 +376,20 @@ size_t TinySerial::write(uint8_t b)
   cli();  // turn off interrupts for a clean txmit
 
   // Write the start bit
-  tx_pin_write(_inverse_logic ? HIGH : LOW);
+  tx_pin_write(LOW);
   tunedDelay(_tx_delay + XMIT_START_ADJUSTMENT);
 
   // Write each of the 8 bits
-  if (_inverse_logic)
-  {
-    for (byte mask = 0x01; mask; mask <<= 1)
-    {
-      if (b & mask) // choose bit
-        tx_pin_write(LOW); // send 1
-      else
-        tx_pin_write(HIGH); // send 0
-    
-      tunedDelay(_tx_delay);
-    }
-
-    tx_pin_write(LOW); // restore pin to natural state
-  }
-  else
-  {
-    for (byte mask = 0x01; mask; mask <<= 1)
-    {
+  for (byte mask = 0x01; mask; mask <<= 1) {
       if (b & mask) // choose bit
         tx_pin_write(HIGH); // send 1
       else
         tx_pin_write(LOW); // send 0
     
       tunedDelay(_tx_delay);
-    }
-
-    tx_pin_write(HIGH); // restore pin to natural state
   }
+
+  tx_pin_write(HIGH); // restore pin to natural state
 
   SREG = oldSREG; // turn interrupts back on
   tunedDelay(_tx_delay);
@@ -451,9 +399,6 @@ size_t TinySerial::write(uint8_t b)
 
 void TinySerial::flush()
 {
-  if (!isListening())
-    return;
-
   uint8_t oldSREG = SREG;
   cli();
   _receive_buffer_head = _receive_buffer_tail = 0;

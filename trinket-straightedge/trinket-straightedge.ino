@@ -5,8 +5,6 @@
 #include "TinySerial.h"
 #include "trinket-straightedge.h"
 
-TinySerial serialGPS = TinySerial(RXPIN, TXPIN);
-
 volatile unsigned long lastPulseMs;
 volatile unsigned long pulsesSinceFix;
 
@@ -23,7 +21,7 @@ enum state_enum currentState;
 # if ARDUINO_UNO
 #  define DEBUGSERIAL Serial
 # else
-#  define DEBUGSERIAL serialGPS
+#  define DEBUGSERIAL TinySerial
 # endif
 /* Should be DEBUG-only */
 unsigned long lastDebug;
@@ -57,7 +55,7 @@ void setup() {
 
   attachInterrupt(0, ppsIsr, RISING);
 
-  serialGPS.begin(RATE);
+  TinySerial::begin(RXPIN, TXPIN, RATE);
 
   bufpos = 0;
   inSentence = false;
@@ -326,8 +324,8 @@ enum state_enum nightEventLoop(void)
 // Can't drain all serial input on one loop -- blocks too long, miss cycles through updateBlink
 void serialLoop(void)
 {
-  if (serialGPS.available()) {
-    char c = serialGPS.read();
+  if (TinySerial::available()) {
+    char c = TinySerial::read();
     if (c == '$') {
       inSentence = true;
       bufpos = 0;
@@ -532,7 +530,7 @@ uint8_t activatePSM[ACTIVATE_LEN] = { 0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x08, 
 // Send a byte array of UBX protocol to the GPS
 inline void sendUBX(uint8_t *MSG, uint8_t len) {
   for(int i=0; i<len; i++) {
-    serialGPS.write(MSG[i]);
+    TinySerial::write(MSG[i]);
   }
 }
 
