@@ -5,7 +5,7 @@
 #define TESTING_NMEA_PARSE 0
 #define TESTING_TIME 0
 #define TESTING_SEISMIC 0
-#define ARDUINO_UNO 1
+#define ARDUINO_UNO 0
 
 /* Times and dates for Burning Man 2015
 /* N.B. 02:49 August 31st UTC = Sunday nightfall
@@ -24,12 +24,12 @@
 /* 10 hours and 11 minutes of blinky each day */
 # define EVENT_START_DAY 242 /* August 31st in UTC-land */
 #else
-# define DUSK_START      (0L*3600L + 1L*60L)
-# define NIGHT_START     (0L*3600L + 2L*60L)
-# define EVENT_START_SEC (0L*3600L + 3L*60L)
-# define NIGHT_END       (23L*3600L + 59L*60L)
+# define DUSK_START      (10L*3600L + 5L*60L)
+# define NIGHT_START     (11L*3600L + 10L*60L)
+# define EVENT_START_SEC (12L*3600L + 15L*60L)
+# define NIGHT_END       (13L*3600L + 20L*60L)
 /* Tuesday Aug 11 = 222 */
-# define EVENT_START_DAY 225
+# define EVENT_START_DAY 229
 #endif
 
 /* Blink configuration */

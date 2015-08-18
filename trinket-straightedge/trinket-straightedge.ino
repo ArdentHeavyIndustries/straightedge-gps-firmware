@@ -436,8 +436,13 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
   if (buflen < RMC_MIN_LEN) {
     return;
   }
-  
+
+  // Atomically clear count of pulses since fix
+  uint8_t oldSREG = SREG;
+  cli();
   pulsesSinceFix = 0;
+  SREG = oldSREG;
+  
   fupd->fixReceiveMs = millis();
 
   unsigned long secondInMinute = (buffer[RMC_SECOND_TENS] - '0') * 10 + (buffer[RMC_SECOND_ONES] - '0');
@@ -495,14 +500,20 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 void estimateNow(struct datetime_struct *nowDateTime)
 {
   unsigned long now = millis();
+
+  uint8_t oldSREG = SREG;
+  cli();
+  unsigned long myLastPulseMs, myPulsesSinceFix;
+  SREG = oldSREG;
+  
   unsigned long extraSeconds = 
-    (now < lastPulseMs + MAX_PULSE_WAIT) ? 
-    pulsesSinceFix : 
+    (now < myLastPulseMs + MAX_PULSE_WAIT) ? 
+    myPulsesSinceFix : 
     ((now - recentFix.fixReceiveMs) / 1000L);
 
   *nowDateTime = recentFix.fixDateTime;
 
-  nowDateTime->millisInSecond = (unsigned int) ((now - lastPulseMs) % 1000L);
+  nowDateTime->millisInSecond = (unsigned int) ((now - myLastPulseMs) % 1000L);
 
   nowDateTime->secondInDay += extraSeconds;
   while (nowDateTime->secondInDay >= SECONDS_IN_DAY) {
@@ -512,7 +523,7 @@ void estimateNow(struct datetime_struct *nowDateTime)
 
 #if TESTING_TIME
     if (inDebug) {
-      DEBUGSERIAL((now < lastPulseMs + MAX_PULSE_WAIT) ? 'S' : 'U');
+      DEBUGSERIAL((now < myLastPulseMs + MAX_PULSE_WAIT) ? 'S' : 'U');
       DEBUGSERIAL(' ');
       debugLong(nowDateTime->millisInSecond);
       DEBUGSERIAL(' ');
@@ -537,9 +548,12 @@ inline uint8_t dtSecond(const datetime_struct *dt) { return (uint8_t) (dt->secon
 inline uint8_t dtMinute(const datetime_struct *dt) { return (uint8_t) ((dt->secondInDay / 60L) % 60L); }
 inline uint8_t dtHour(const datetime_struct *dt) { return (uint8_t) (dt->secondInDay / 3600L); }
 
+// Safe to access directly in an ISR
+extern volatile unsigned long timer0_millis;
+
 void ppsIsr(void)
 {
-  lastPulseMs = millis();
+  lastPulseMs = timer0_millis;
   pulsesSinceFix++;
 }
 
