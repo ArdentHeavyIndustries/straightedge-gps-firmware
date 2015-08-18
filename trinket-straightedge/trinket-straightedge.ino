@@ -19,14 +19,14 @@ enum state_enum currentState;
 
 #if TESTING
 # if ARDUINO_UNO
-#  define DEBUGSERIAL Serial
+#  define DEBUGSERIAL Serial.write
 # else
-#  define DEBUGSERIAL TinySerial
+#  define DEBUGSERIAL TinySerial::write
 # endif
 /* Should be DEBUG-only */
 unsigned long lastDebug;
 uint8_t inDebug;
-void debugDigit(uint8_t x) { DEBUGSERIAL.write('0' + (x%10)); }
+void debugDigit(uint8_t x) { DEBUGSERIAL('0' + (x%10)); }
 void debugLong(uint32_t x) { 
   debugDigit((x / 100000000L) % 10); 
   debugDigit((x / 10000000L) % 10); 
@@ -68,14 +68,14 @@ void setup() {
 #if TESTING
   lastDebug = 0;
   inDebug = false;
-  DEBUGSERIAL.write('H');
-  DEBUGSERIAL.write('i');
-  DEBUGSERIAL.write('\r');
-  DEBUGSERIAL.write('\n');
+  DEBUGSERIAL('H');
+  DEBUGSERIAL('i');
+  DEBUGSERIAL('\r');
+  DEBUGSERIAL('\n');
 #endif
 
 #if ARDUINO_UNO
-  Serial.begin(9600);
+  Serial.begin(57600);
   Serial.write("Arduino Uno xXx test code");
 
   char test1[BUFLEN] = "$GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,46.73,050815,,,A*";
@@ -104,7 +104,7 @@ void loop(void) {
   }
 
   if (inDebug) {
-    DEBUGSERIAL.write('A' + currentState);
+    DEBUGSERIAL('A' + currentState);
   }
 #endif
   
@@ -112,17 +112,17 @@ void loop(void) {
 
 #if TESTING
   if (inDebug) {
-    DEBUGSERIAL.write('\r');
-    DEBUGSERIAL.write('\n');
+    DEBUGSERIAL('\r');
+    DEBUGSERIAL('\n');
   }
 #endif
 
   if (nextState != currentState) {
 #if TESTING
-    DEBUGSERIAL.write('A' + currentState);
-    DEBUGSERIAL.write('a' + nextState);
-    DEBUGSERIAL.write('\r');
-    DEBUGSERIAL.write('\n');
+    DEBUGSERIAL('A' + currentState);
+    DEBUGSERIAL('a' + nextState);
+    DEBUGSERIAL('\r');
+    DEBUGSERIAL('\n');
 #endif
     enterState(nextState);
     currentState = nextState;
@@ -279,7 +279,7 @@ enum state_enum nightEventLoop(void)
   
   // check if this works as intended
   // seismic event always starts at the top of a minute
-  unsigned long msNow = ( dtSecond(&nowDateTime) * 1000 ) + ((unsigned long) nowDateTime.millisInSecond);
+  unsigned long msNow = ( dtSecond(&nowDateTime) * 1000L ) + ((unsigned long) nowDateTime.millisInSecond);
 
   // True iff we're in a "normal" pulse with 
   uint8_t inNormalPulse = (dtSecond(&nowDateTime) % PULSE_FREQUENCY == 0) &&
@@ -290,10 +290,28 @@ enum state_enum nightEventLoop(void)
        (msNow > SEISMIC_TOTAL_TIME) ){
     // not in animation phase - proceed normally
 
+#if TESTING_SEISMIC
+    if (inDebug) {
+      DEBUGSERIAL('N');
+      debugLong(dtMinute(&nowDateTime));
+      DEBUGSERIAL(' ');
+      debugLong(msNow);
+    }
+#endif
+
     digitalWrite(LEDPIN, inNormalPulse ? HIGH : LOW);
- 
   } else {
     // EARTHQUAKE!
+
+#if TESTING_SEISMIC
+    if (inDebug) {
+      DEBUGSERIAL('Y');
+      debugLong(dtMinute(&nowDateTime));
+      DEBUGSERIAL(' ');
+      debugLong(msNow);
+    }
+#endif
+    
     if ( ((swaveOffset < msNow) && (msNow < swaveOffset + SEISMIC_DURATION)) ||
 	       ((pwaveOffset < msNow) && (msNow < pwaveOffset + SEISMIC_DURATION)) ) {
 
@@ -403,10 +421,10 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 {
 #if TESTING
   for (int i = 0; i < buflen; i++) {
-    DEBUGSERIAL.write(buffer[i]);
+    DEBUGSERIAL(buffer[i]);
   }
-  DEBUGSERIAL.write('\r');
-  DEBUGSERIAL.write('\n');
+  DEBUGSERIAL('\r');
+  DEBUGSERIAL('\n');
 #endif
 
   if (buflen < RMC_MIN_LEN) {
@@ -447,23 +465,23 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
     + ((unsigned long) (buffer[RMC_LONGIMIN_FOURTH] - '0')) * 100L
     + ((unsigned long) (buffer[RMC_LONGIMIN_FIFTH] - '0')) * 10L;
 
-#if TESTING  
+#if TESTING_NMEA_PARSE
   debugLong(fupd->fixReceiveMs);
-  DEBUGSERIAL.write(' ');
+  DEBUGSERIAL(' ');
 
   debugLong(fupd->fixDateTime.secondInDay);
-  DEBUGSERIAL.write(' ');
+  DEBUGSERIAL(' ');
 
   debugLong(dateStart);
-  DEBUGSERIAL.write(' ');
+  DEBUGSERIAL(' ');
 
   debugLong(fupd->fixDateTime.dayInYear);
-  DEBUGSERIAL.write(' ');
+  DEBUGSERIAL(' ');
 
   debugLong(fupd->fixLongiUMin);
 
-  DEBUGSERIAL.write('\r');
-  DEBUGSERIAL.write('\n');
+  DEBUGSERIAL('\r');
+  DEBUGSERIAL('\n');
 #endif
 }
 
@@ -486,32 +504,32 @@ void estimateNow(struct datetime_struct *nowDateTime)
     nowDateTime->dayInYear++;
   }
 
-#if TESTING
+#if TESTING_TIME
     if (inDebug) {
-      DEBUGSERIAL.write((now < lastPulseMs + MAX_PULSE_WAIT) ? 'S' : 'U');
-      DEBUGSERIAL.write(' ');
+      DEBUGSERIAL((now < lastPulseMs + MAX_PULSE_WAIT) ? 'S' : 'U');
+      DEBUGSERIAL(' ');
       debugLong(nowDateTime->millisInSecond);
-      DEBUGSERIAL.write(' ');
+      DEBUGSERIAL(' ');
       debugLong(extraSeconds);
-      DEBUGSERIAL.write(' ');
+      DEBUGSERIAL(' ');
       debugLong(recentFix.fixDateTime.secondInDay);
-      DEBUGSERIAL.write(' ');
+      DEBUGSERIAL(' ');
       debugLong(nowDateTime->secondInDay);
-      DEBUGSERIAL.write(' ');
+      DEBUGSERIAL(' ');
       debugLong(DUSK_START);
-      DEBUGSERIAL.write(' ');
+      DEBUGSERIAL(' ');
       debugLong(NIGHT_END);
-      DEBUGSERIAL.write(' ');
+      DEBUGSERIAL(' ');
       debugLong(nowDateTime->dayInYear);
-      DEBUGSERIAL.write(' ');
+      DEBUGSERIAL(' ');
       debugLong(EVENT_START_DAY);
     }
 #endif    
 }
 
-inline uint8_t dtSecond(const datetime_struct *dt) { return (uint8_t) (dt->secondInDay % 60); }
-inline uint8_t dtMinute(const datetime_struct *dt) { return (uint8_t) ((dt->secondInDay / 60) % 60); }
-inline uint8_t dtHour(const datetime_struct *dt) { return (uint8_t) (dt->secondInDay / 3600); }
+inline uint8_t dtSecond(const datetime_struct *dt) { return (uint8_t) (dt->secondInDay % 60L); }
+inline uint8_t dtMinute(const datetime_struct *dt) { return (uint8_t) ((dt->secondInDay / 60L) % 60L); }
+inline uint8_t dtHour(const datetime_struct *dt) { return (uint8_t) (dt->secondInDay / 3600L); }
 
 void ppsIsr(void)
 {
