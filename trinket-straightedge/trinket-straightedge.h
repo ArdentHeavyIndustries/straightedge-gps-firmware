@@ -21,9 +21,9 @@
 /* 10 hours and 11 minutes of blinky each day */
 # define EVENT_START_DAY 242 /* August 31st in UTC-land */
 #else
-# define DUSK_START      (14L*3600L + 4L*60L)
-# define NIGHT_START     (14L*3600L + 49L*60L)
-# define EVENT_START_SEC (15L*3600L + 0L*60L)
+# define DUSK_START      (0L*3600L + 1L*60L)
+# define NIGHT_START     (0L*3600L + 2L*60L)
+# define EVENT_START_SEC (0L*3600L + 3L*60L)
 # define NIGHT_END       (23L*3600L + 59L*60L)
 /* Tuesday Aug 11 = 222 */
 # define EVENT_START_DAY 225
@@ -136,7 +136,7 @@ void nightEventEnter(void);
 void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen);
 
 // seismic animation presets
-#define X0 10845360L // longitude minutes of first post, times 1,000,000
+#define X0  10845360L // longitude minutes of first post, times 1,000,000
 #define LONG_INTERVAL 7680 //longitude interval between any two stakes, in longitude minutes * 1,000,000
 
 #define SWAVE_INTERVAL 50 // milliseconds between posts for shear wave
@@ -146,6 +146,10 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen);
 #define SEISMIC_DURATION 150 // how long LED stays on when lit during the seismic animation
 
 #define DIM_INTENSITY 32 // intensity of dim LEDs while the animation is happening
+
+#define SEISMIC_INTERVAL 5 // Minutes between seismic waves: happen when (minute-in-hour % SEISMIC_INTERVAL == 0)
+
+#define SEISMIC_TOTAL_TIME (SWAVE_INTERVAL * 300) // milliseconds of seismic wave mode
 
 #endif
 

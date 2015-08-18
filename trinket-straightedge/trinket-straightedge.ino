@@ -281,8 +281,6 @@ enum state_enum nightEventLoop(void)
   // check if this works as intended
   unsigned long msNow = ( dtSecond(&nowDateTime) * 1000 ) + ((unsigned long) nowDateTime.millisInSecond);
 
-
-
   if ((dtMinute(&nowDateTime) % SEISMIC_INTERVAL) ||
       msNow > SEISMIC_TOTAL_TIME) {
     // not in animation phase - proceed normally
@@ -291,20 +289,22 @@ enum state_enum nightEventLoop(void)
  
   } else {
     // EARTHQUAKE!
-    
-    if ((msNow < swaveOffset - CLEAR_WINDOW) || (msNow > swaveOffset + CLEAR_WINDOW + SEISMIC_DURATION)) {
-      // in animation period, but not currently activated: blink dimly
-      
-      analogWrite(LEDPIN, ((nowDateTime.millisInSecond >= PULSE_START) && (nowDateTime.millisInSecond < (PULSE_START + PULSE_DUR))) ? DIM_INTENSITY : LOW);
+    if ( ((swaveOffset < msNow) && (msNow < swaveOffset + SEISMIC_DURATION)) ||
+	 ((pwaveOffset < msNow) && (msNow < pwaveOffset + SEISMIC_DURATION)) ) {
 
-    } else if ( (msNow < swaveOffset) || (msNow > swaveOffset + SEISMIC_DURATION) ) {
+      // animate!: turn on LED. Highest priority.
+      digitalWrite(LEDPIN, HIGH); 
+      
+    } else if ( ((swaveOffset - CLEAR_WINDOW < msNow) && (msNow < swaveOffset + CLEAR_WINDOW + SEISMIC_DURATION)) ||
+		((pwaveOffset - CLEAR_WINDOW < msNow) && (msNow < pwaveOffset + CLEAR_WINDOW + SEISMIC_DURATION)) ) {
+      
       // in clearout window: turn off LED
       digitalWrite(LEDPIN, LOW);
 
     } else {
-      // swaveOffset < msNow < swaveOffset + 150
-      // animate!: turn on LED
-      digitalWrite(LEDPIN, HIGH);
+
+      // it's animation time, but this position isn't currently activated: blink dimly
+      analogWrite(LEDPIN, ((millisInSecond >= PULSE_START) && (millisInSecond < (PULSE_START + PULSE_DUR))) ? DIM_INTENSITY : LOW);
     }
   }
   
