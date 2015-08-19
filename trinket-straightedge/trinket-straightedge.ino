@@ -503,7 +503,7 @@ void estimateNow(struct datetime_struct *nowDateTime)
 
   uint8_t oldSREG = SREG;
   cli();
-  unsigned long myLastPulseMs, myPulsesSinceFix;
+  unsigned long myLastPulseMs = lastPulseMs, myPulsesSinceFix = pulsesSinceFix;
   SREG = oldSREG;
   
   unsigned long extraSeconds = 

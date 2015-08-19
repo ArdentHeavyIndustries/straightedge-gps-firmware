@@ -24,10 +24,10 @@
 /* 10 hours and 11 minutes of blinky each day */
 # define EVENT_START_DAY 242 /* August 31st in UTC-land */
 #else
-# define DUSK_START      (10L*3600L + 5L*60L)
-# define NIGHT_START     (11L*3600L + 10L*60L)
-# define EVENT_START_SEC (12L*3600L + 15L*60L)
-# define NIGHT_END       (13L*3600L + 20L*60L)
+# define DUSK_START      (2L*3600L + 4L*60L)
+# define NIGHT_START     (2L*3600L + 49L*60L)
+# define EVENT_START_SEC (17*3600L + 0L*60L)
+# define NIGHT_END       (13L*3600L + 0L*60L)
 /* Tuesday Aug 11 = 222 */
 # define EVENT_START_DAY 229
 #endif
@@ -140,6 +140,10 @@ void nightEventEnter(void);
 void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen);
 
 // seismic animation presets
+// stake   0 = -119.180756º = 119º 10.84536' W = 119º 10' 50.72"
+// stake   1 = -119.180884º = 119º 10.85304' W
+// stake 279 = -119.216469º = 119º 12.98814' W = 119º 12' 59.29"
+
 #define X0  10845360L // longitude minutes of first post, times 1,000,000
 #define LONG_INTERVAL 7680 //longitude interval between any two stakes, in longitude minutes * 1,000,000
 
@@ -151,13 +155,22 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen);
 
 #define DIM_INTENSITY 32 // intensity of dim LEDs while the animation is happening
 
-#define SEISMIC_INTERVAL 2 // Minutes between seismic waves: happen when (minute-in-hour % SEISMIC_INTERVAL == 0)
+#define SEISMIC_INTERVAL 1 // Minutes between seismic waves: happen when (minute-in-hour % SEISMIC_INTERVAL == 0)
 
 #define SEISMIC_TOTAL_TIME (SWAVE_INTERVAL * 300) // milliseconds of seismic wave mode
 
 // FOR TESTING
 // Longitude of Nick & Liana's house: 122º 25.320000'
+// Longitude of Cesar Chavez x US-101 122º 24.320000'
 #define X0 25320000L
 #define X0 24320000L
+
+// Longitude of Octagon 122º 24.393720' (= -122.406217º) 
+// Nearby, 122º 23.893720 (= -122.398229º) is 4th & Bryant
+// Nearby, 122º 23.393720 (= -122.389895º) is King and Embarcadero -- other end would be Gough & McAllister (or with N/S to beach at maritime park)
+#define X0 24393720L
+#define X0 23893720L
+#define X0 23393720L
+
 #endif
 
