@@ -15,10 +15,13 @@ f = open(sys.argv[1], "r")
 datafile = f.read()
 f.close()
 
-ledOn = 0
-ledOff = 0
-enableOn = 0
-enableOff = 0
+ledStartPwmTime = None
+ledLastTime = None
+ledLastValue = None
+enableStartPwmTime = None
+enableLastTime = None
+
+maxPwmTime = 18
 
 def formatTime(ms):
     hours = ms / (60 * 60 * 1000)
@@ -43,17 +46,21 @@ for l in datafile.split("\r\n"):
     (timestr, led, enable, change) = l.split('\t')
     time = int(timestr)
     if change == "L":        
-        if led == "1":
-            print "%s\t%s\t%s\tLED Off" % (formatTime(ledOff + baseTime), formatTime(time + baseTime), formatTime(time - ledOff))
-            ledOn = time
-        else:
-            print "%s\t%s\t%s\tLED On" % (formatTime(ledOn + baseTime), formatTime(time + baseTime), formatTime(time - ledOn))
-            ledOff = time
-    elif change == "E":
-        if enable == "1":
-            print "%s\t%s\t%s\tENABLE Off" % (formatTime(enableOff + baseTime), formatTime(time + baseTime), formatTime(time - enableOff))
-            enableOn = time
-        else:
-            print "%s\t%s\t%s\tENABLE On" % (formatTime(enableOn + baseTime), formatTime(time + baseTime), formatTime(time - enableOn))
-            enableOff = time
-    
+        if ledLastTime is not None:
+            if ((time - ledLastTime) <= maxPwmTime):
+                ledLastTime = time
+                if ledStartPwmTime is None:
+                    ledStartPwmTime = ledLastTime
+            else:
+                if ledStartPwmTime is not None:
+                    print "%s\t%s\t%s\t%s\tLED PWM" % (formatTime(ledStartPwmTime + baseTime),
+                                                       formatTime(ledLastTime + baseTime),
+                                                       formatTime(ledLastTime - ledStartPwmTime),
+                                                       timestr)
+                    ledStartPwmTime = None
+                if led == "1":
+                    print "%s\t%s\t%s\t%s\tLED Off %s" % (formatTime(ledLastTime + baseTime), formatTime(time + baseTime), formatTime(time - ledLastTime), timestr, ledLastValue)
+                else:
+                    print "%s\t%s\t%s\t%s\tLED On  %s" % (formatTime(ledLastTime + baseTime), formatTime(time + baseTime), formatTime(time - ledLastTime), timestr, ledLastValue)
+        ledLastTime = time                
+        ledLastValue = led
