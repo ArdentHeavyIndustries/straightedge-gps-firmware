@@ -44,10 +44,7 @@ void setup() {
 void loop() {
   if (isrChangePtr != serialChangePtr) {
     struct change_struct *chg = &(changes[serialChangePtr]);
-    serialChangePtr++;
-    if (serialChangePtr >= NCHANGES) {
-      serialChangePtr = 0;
-    }
+    serialChangePtr = (serialChangePtr + 1) % NCHANGES;
 
     Serial.print(chg->changems);
     Serial.write('\t');
