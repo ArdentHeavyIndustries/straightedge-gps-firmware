@@ -40,6 +40,10 @@ void debugLong(uint32_t x) {
 }
 #endif
 
+#if TESTING_ISR
+volatile unsigned long isrCount = 0;
+#endif
+
 void setup() {
   pinMode(RXPIN, INPUT);
   pinMode(ENABLEPIN, OUTPUT);
@@ -90,6 +94,13 @@ void setup() {
   updateFixFromNmea(&test_fix, test3, strlen(test3));
   updateFixFromNmea(&test_fix, test4, strlen(test4));
   updateFixFromNmea(&test_fix, test5, strlen(test5));
+
+  for (unsigned long i = 99; i < (99 + SEISMIC_DURATION_FULL + 10); i++) {
+    Serial.print(i);
+    Serial.write('\t');
+    Serial.print(seismicBrightness(100, i));
+    Serial.println();
+  }
 #endif
 }
 
@@ -131,7 +142,7 @@ void loop(void) {
 
 enum state_enum stateLoop(enum state_enum) {
   serialLoop();
-  
+
   switch(currentState) {
     case stateStartup:
       return startupLoop();
@@ -267,6 +278,22 @@ enum state_enum nightStartLoop(void) {
   }
 }
 
+uint8_t seismicBrightness(unsigned long waveOffset, unsigned long msNow)
+{
+  if ( (waveOffset < msNow) && (msNow < (waveOffset + SEISMIC_DURATION_FULL)) ) {
+    if (msNow <= (waveOffset + SEISMIC_DURATION_BRIGHT)) {
+      return 255;
+    } else {
+      unsigned int fadeTime = msNow - (waveOffset + SEISMIC_DURATION_BRIGHT);
+      if (fadeTime <= SEISMIC_DURATION_FADE) {
+        return (uint8_t) (255 - (255 * fadeTime / SEISMIC_DURATION_FADE));
+      }
+    }
+  }
+
+  return 0;
+}
+
 enum state_enum nightEventLoop(void) 
 {
   struct datetime_struct nowDateTime;
@@ -285,6 +312,10 @@ enum state_enum nightEventLoop(void)
   uint8_t inNormalPulse = (dtSecond(&nowDateTime) % PULSE_FREQUENCY == 0) &&
                           ( (nowDateTime.millisInSecond >= PULSE_START_A && nowDateTime.millisInSecond < PULSE_END_A) ||
                             (nowDateTime.millisInSecond >= PULSE_START_B && nowDateTime.millisInSecond < PULSE_END_B) );
+
+#if TESTING_ISR
+  digitalWrite(LEDPIN, ((isrCount % 2) == 0) ? HIGH : LOW);
+#endif /* TESTING_ISR */
 
   if ( (dtMinute(&nowDateTime) % SEISMIC_INTERVAL) ||
        (msNow > SEISMIC_TOTAL_TIME) ){
@@ -313,19 +344,22 @@ enum state_enum nightEventLoop(void)
       debugLong(swaveOffset);
       DEBUGSERIAL(' ');
       debugLong(pwaveOffset);
-      DEBUGSERIAL('\r');
-      DEBUGSERIAL('\n');
+      DEBUGSERIAL(' ');
     }
 #endif
     
-    if ( ((swaveOffset < msNow) && (msNow < swaveOffset + SEISMIC_DURATION)) ||
-	       ((pwaveOffset < msNow) && (msNow < pwaveOffset + SEISMIC_DURATION)) ) {
-
+    if ( ((swaveOffset < msNow) && (msNow < swaveOffset + SEISMIC_DURATION_FULL)) ||
+	       ((pwaveOffset < msNow) && (msNow < pwaveOffset + SEISMIC_DURATION_FULL)) ) {
       // animate!: turn on LED. Highest priority.
-      digitalWrite(LEDPIN, HIGH); 
-      
-    } else if ( ((swaveOffset - CLEAR_WINDOW < msNow) && (msNow < swaveOffset + CLEAR_WINDOW + SEISMIC_DURATION)) ||
-		            ((pwaveOffset - CLEAR_WINDOW < msNow) && (msNow < pwaveOffset + CLEAR_WINDOW + SEISMIC_DURATION)) ) {
+
+      // Calculate the brightness for each wave individually, then take the maximum
+      // Default brightness is 0
+      uint8_t swaveBrightness = seismicBrightness(swaveOffset, msNow);
+      uint8_t pwaveBrightness = seismicBrightness(pwaveOffset, msNow);
+
+      analogWrite(LEDPIN, (swaveBrightness > pwaveBrightness) ? swaveBrightness : pwaveBrightness);       
+    } else if ( ((swaveOffset - CLEAR_WINDOW < msNow) && (msNow < swaveOffset + CLEAR_WINDOW + SEISMIC_DURATION_FULL)) ||
+		            ((pwaveOffset - CLEAR_WINDOW < msNow) && (msNow < pwaveOffset + CLEAR_WINDOW + SEISMIC_DURATION_FULL)) ) {
       
       // in clearout window: turn off LED
       digitalWrite(LEDPIN, LOW);
@@ -525,6 +559,10 @@ void estimateNow(struct datetime_struct *nowDateTime)
     if (inDebug) {
       DEBUGSERIAL((now < myLastPulseMs + MAX_PULSE_WAIT) ? 'S' : 'U');
       DEBUGSERIAL(' ');
+      debugLong(now);
+      DEBUGSERIAL(' ');
+      debugLong(myLastPulseMs);
+      DEBUGSERIAL(' ');
       debugLong(nowDateTime->millisInSecond);
       DEBUGSERIAL(' ');
       debugLong(extraSeconds);
@@ -555,6 +593,10 @@ void ppsIsr(void)
 {
   lastPulseMs = timer0_millis;
   pulsesSinceFix++;
+
+#if TESTING_ISR
+  isrCount++;
+#endif
 }
 
 // configure power save mode to be cyclic mode - UBX-CFG-PM2

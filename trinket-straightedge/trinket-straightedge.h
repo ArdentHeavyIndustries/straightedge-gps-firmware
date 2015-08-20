@@ -5,6 +5,7 @@
 #define TESTING_NMEA_PARSE 0
 #define TESTING_TIME 0
 #define TESTING_SEISMIC 0
+#define TESTING_ISR 0
 #define ARDUINO_UNO 0
 
 /* Times and dates for Burning Man 2015
@@ -24,10 +25,10 @@
 /* 10 hours and 11 minutes of blinky each day */
 # define EVENT_START_DAY 242 /* August 31st in UTC-land */
 #else
-# define DUSK_START      (2L*3600L + 4L*60L)
-# define NIGHT_START     (2L*3600L + 49L*60L)
-# define EVENT_START_SEC (17*3600L + 0L*60L)
-# define NIGHT_END       (13L*3600L + 0L*60L)
+# define DUSK_START      (0L*3600L + 1L*60L)
+# define NIGHT_START     (0L*3600L + 2L*60L)
+# define EVENT_START_SEC (0L*3600L + 3L*60L)
+# define NIGHT_END       (23L*3600L + 59L*60L)
 /* Tuesday Aug 11 = 222 */
 # define EVENT_START_DAY 229
 #endif
@@ -151,7 +152,9 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen);
 #define PWAVE_INTERVAL 30 // milliseconds between posts for pressure wave;
 
 #define CLEAR_WINDOW 250 // clear out a window of 500 ms around the current animated LED
-#define SEISMIC_DURATION 150 // how long LED stays on when lit during the seismic animation
+#define SEISMIC_DURATION_BRIGHT  64 // how long LED stays full brightness during the seismic animation
+#define SEISMIC_DURATION_FADE   192 // how long LED fades from full brightness during the seismic animation
+#define SEISMIC_DURATION_FULL   (SEISMIC_DURATION_BRIGHT + SEISMIC_DURATION_FADE)
 
 #define DIM_INTENSITY 32 // intensity of dim LEDs while the animation is happening
 
