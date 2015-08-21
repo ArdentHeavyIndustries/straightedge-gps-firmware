@@ -1,10 +1,10 @@
 #ifndef TRINKET_STRAIGHTEDGE_H
 #define TRINKET_STRAIGHTEDGE_H 1
 
-#define TESTING 1
+#define TESTING 0
 #define TESTING_STATE 0
 #define TESTING_NMEA_PARSE 0
-#define TESTING_TIME 1
+#define TESTING_TIME 0
 #define TESTING_SEISMIC 0
 #define TESTING_ISR 0
 #define ARDUINO_UNO 0
@@ -18,21 +18,20 @@
  * Nominal 45 minute "dusk" period allows 15 minute fast drift 
  * (i.e., 30 minutes real dusk period) and GPS fix before night.
  */
-#if 0
-# define DUSK_START       7740L /* 19:04 PDT = 02:04 UTC */
+
+# define DUSK_START       6540L /* 18:49 PDT = 01:49 UTC */
 # define NIGHT_START     10140L /* 19:49 PDT = 02:49 UTC */
 # define EVENT_START_SEC 25200L /* 00:00 PDT = 07:00 UTC */
 # define NIGHT_END       46800L /* 06:00 PDT = 13:00 UTC */
 /* 10 hours and 11 minutes of blinky each day */
 # define EVENT_START_DAY 242 /* August 31st in UTC-land */
-#else
-# define DUSK_START      (0L*3600L + 1L*60L)
-# define NIGHT_START     (0L*3600L + 2L*60L)
-# define EVENT_START_SEC (0L*3600L + 3L*60L)
-# define NIGHT_END       (23L*3600L + 59L*60L)
+
+// # define DUSK_START      (0L*3600L + 1L*60L)
+// # define NIGHT_START     (0L*3600L + 2L*60L)
+// # define EVENT_START_SEC (0L*3600L + 3L*60L)
+// # define NIGHT_END       (23L*3600L + 59L*60L)
 /* Tuesday Aug 11 = 222 */
-# define EVENT_START_DAY 229
-#endif
+// # define EVENT_START_DAY 229
 
 /* Blink configuration */
 #define PULSE_FREQUENCY         2  // Pulse when seconds % PULSE_FREQUENCY == 0
@@ -174,7 +173,7 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen);
 // Nearby, 122º 23.393720 (= -122.389895º) is King and Embarcadero -- other end would be Gough & McAllister (or with N/S to beach at maritime park)
 // #define X0 24393720L
 // #define X0 23893720L
-#define X0 23393720L
+// #define X0 23393720L
 
 #endif
 

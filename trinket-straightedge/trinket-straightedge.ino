@@ -17,26 +17,6 @@ struct fix_struct recentFix;
 
 enum state_enum currentState;
 
-#if TESTING
-# if ARDUINO_UNO
-#  define DEBUGSERIAL Serial.write
-# else
-#  define DEBUGSERIAL TinySerial::write
-# endif
-/* Should be DEBUG-only */
-unsigned long lastDebug;
-uint8_t inDebug;
-void debugLong(uint32_t x) { 
-  for (unsigned long l = 100000000L; l > 0; l = l / 10L) {
-    DEBUGSERIAL('0' + ((x / l) % 10));
-  }
-}
-#endif
-
-#if TESTING_ISR
-volatile unsigned long isrCount = 0;
-#endif
-
 void setup() {
   pinMode(RXPIN, INPUT);
   pinMode(ENABLEPIN, OUTPUT);
@@ -61,83 +41,12 @@ void setup() {
 
   currentState = stateStartup;
   startupEnter();
-
-#if TESTING
-  lastDebug = 0;
-  inDebug = false;
-  DEBUGSERIAL('H');
-  DEBUGSERIAL('i');
-  DEBUGSERIAL('\r');
-  DEBUGSERIAL('\n');
-#endif
-
-#if ARDUINO_UNO
-  Serial.begin(57600);
-  Serial.write("Arduino Uno xXx test code");
-
-  char test1[BUFLEN] = "$GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,46.73,050815,,,A*";
-  char test2[BUFLEN] = "$GPRMC,062908.00,A,3746.81259,N,12224.40523,W,1.277,,050815,,,A*";
-  char test3[BUFLEN] = "$GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,146.73,050815,,,A*";
-  char test4[BUFLEN] = "$GPRMC,063012.00,A,3746.81357,N,12224.40698,W,1.656,6.73,050815,,,A*";
-  char test5[BUFLEN] = "$GPRMC,081618.00,A,3746.78884,N,12224.42742,W,11.085,225.66,150815,,,A*";
-
-  struct fix_struct test_fix;
-  updateFixFromNmea(&test_fix, test1, strlen(test1));
-  updateFixFromNmea(&test_fix, test2, strlen(test2));
-  updateFixFromNmea(&test_fix, test3, strlen(test3));
-  updateFixFromNmea(&test_fix, test4, strlen(test4));
-  updateFixFromNmea(&test_fix, test5, strlen(test5));
-
-  for (unsigned long i = 99; i < (99 + SEISMIC_DURATION_FULL + 10); i++) {
-    Serial.print(i);
-    Serial.write('\t');
-    Serial.print(seismicBrightness(100, i));
-    Serial.println();
-  }
-#endif
 }
 
 void loop(void) {
-#if TESTING
-/*
-  unsigned long now = millis();
-  if (now - lastDebug > 1075L) {
-    inDebug = true;
-    lastDebug = now;
-  } else {
-    inDebug = false;
-  }
-*/
-  if (lastPulseMs > lastDebug) {
-    inDebug = true;
-    lastDebug = lastPulseMs;
-  } else {
-    inDebug = false;
-  }
-#endif /* TESTING */
-
-#if TESTING_STATE
-  if (inDebug) {
-    DEBUGSERIAL('A' + currentState);
-  }
-#endif /* TESTING_STATE */
-  
   enum state_enum nextState = stateLoop(currentState);
 
-#if TESTING_STATE
-  if (inDebug) {
-    DEBUGSERIAL('\r');
-    DEBUGSERIAL('\n');
-  }
-#endif /* TESTING_STATE */
-
   if (nextState != currentState) {
-#if TESTING_STATE
-    DEBUGSERIAL('A' + currentState);
-    DEBUGSERIAL('a' + nextState);
-    DEBUGSERIAL('\r');
-    DEBUGSERIAL('\n');
-#endif /* TESTING_STATE */
     enterState(nextState);
     currentState = nextState;
   }
@@ -211,7 +120,6 @@ enum state_enum startupLoop(void) {
 }
 
 enum state_enum daytimeLoop(void) {
-#if !TESTING_TIME
   if (recentFix.fixValid) {
     struct datetime_struct nowDateTime;
     estimateNow(&nowDateTime);
@@ -224,7 +132,6 @@ enum state_enum daytimeLoop(void) {
   } else { /* No idea what time it is! */
     return stateStartup;
   }
-#endif /* !TESTING_TIME */
 }
 
 enum state_enum duskLoop(void) 
@@ -250,7 +157,6 @@ enum state_enum duskLoop(void)
 
 enum state_enum nightPreLoop(void) 
 {
-#if !TESTING_TIME
   struct datetime_struct nowDateTime;
   estimateNow(&nowDateTime);
 
@@ -264,11 +170,9 @@ enum state_enum nightPreLoop(void)
   } else {
     return stateNightPre;
   }
-#endif /* !TESTING_TIME */
 }
 
 enum state_enum nightStartLoop(void) {
-#if !TESTING_TIME
   struct datetime_struct nowDateTime;
   estimateNow(&nowDateTime);
 
@@ -284,7 +188,6 @@ enum state_enum nightStartLoop(void) {
   } else {
     return stateNightStart;
   }
-#endif /* !TESTING_TIME */  
 }
 
 uint8_t seismicBrightness(unsigned long waveOffset, unsigned long msNow)
@@ -322,41 +225,12 @@ enum state_enum nightEventLoop(void)
                           ( (nowDateTime.millisInSecond >= PULSE_START_A && nowDateTime.millisInSecond < PULSE_END_A) ||
                             (nowDateTime.millisInSecond >= PULSE_START_B && nowDateTime.millisInSecond < PULSE_END_B) );
 
-#if TESTING_ISR
-  digitalWrite(LEDPIN, ((isrCount % 2) == 0) ? HIGH : LOW);
-#endif /* TESTING_ISR */
-
   if ( (dtMinute(&nowDateTime) % SEISMIC_INTERVAL) ||
        (msNow > SEISMIC_TOTAL_TIME) ){
     // not in animation phase - proceed normally
-
-#if TESTING_SEISMIC
-    if (inDebug) {
-      DEBUGSERIAL('N');
-      debugLong(dtMinute(&nowDateTime));
-      DEBUGSERIAL(' ');
-      debugLong(msNow);
-    }
-#endif /* TESTING_SEISMIC */
-
     digitalWrite(LEDPIN, inNormalPulse ? HIGH : LOW);
   } else {
     // EARTHQUAKE!
-
-#if TESTING_SEISMIC
-    if (inDebug) {
-      DEBUGSERIAL('Y');
-      debugLong(dtMinute(&nowDateTime));
-      DEBUGSERIAL(' ');
-      debugLong(msNow);
-      DEBUGSERIAL(' ');
-      debugLong(swaveOffset);
-      DEBUGSERIAL(' ');
-      debugLong(pwaveOffset);
-      DEBUGSERIAL(' ');
-    }
-#endif /* TESTING_SEISMIC */
-    
     if ( ((swaveOffset < msNow) && (msNow < swaveOffset + SEISMIC_DURATION_FULL)) ||
 	       ((pwaveOffset < msNow) && (msNow < pwaveOffset + SEISMIC_DURATION_FULL)) ) {
       // animate!: turn on LED. Highest priority.
@@ -468,14 +342,6 @@ int monthFirstDate[NMONTHS] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304
 
 void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 {
-#if TESTING_NMEA_PARSE
-  for (int i = 0; i < buflen; i++) {
-    DEBUGSERIAL(buffer[i]);
-  }
-  DEBUGSERIAL('\r');
-  DEBUGSERIAL('\n');
-#endif /* TESTING_NMEA_PARSE */
-
   if (buflen < RMC_MIN_LEN) {
     return;
   }
@@ -518,25 +384,6 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
     + ((unsigned long) (buffer[RMC_LONGIMIN_THIRD] - '0')) * 1000L
     + ((unsigned long) (buffer[RMC_LONGIMIN_FOURTH] - '0')) * 100L
     + ((unsigned long) (buffer[RMC_LONGIMIN_FIFTH] - '0')) * 10L;
-
-#if TESTING_NMEA_PARSE
-  debugLong(fupd->fixReceiveMs);
-  DEBUGSERIAL(' ');
-
-  debugLong(fupd->fixDateTime.secondInDay);
-  DEBUGSERIAL(' ');
-
-  debugLong(dateStart);
-  DEBUGSERIAL(' ');
-
-  debugLong(fupd->fixDateTime.dayInYear);
-  DEBUGSERIAL(' ');
-
-  debugLong(fupd->fixLongiUMin);
-
-  DEBUGSERIAL('\r');
-  DEBUGSERIAL('\n');
-#endif /* TESTING_NMEA_PARSE */
 }
 
 #define SECONDS_IN_DAY 86400L
@@ -563,36 +410,6 @@ void estimateNow(struct datetime_struct *nowDateTime)
     nowDateTime->secondInDay -= SECONDS_IN_DAY;
     nowDateTime->dayInYear++;
   }
-
-#if TESTING_TIME
-    if (inDebug) {
-      DEBUGSERIAL((now < myLastPulseMs + MAX_PULSE_WAIT) ? 'S' : 'U');
-      DEBUGSERIAL(' ');
-      debugLong(now);
-      DEBUGSERIAL(' ');
-      debugLong(myLastPulseMs);
-      DEBUGSERIAL(' ');
-      debugLong(nowDateTime->millisInSecond);
-/*
-      DEBUGSERIAL(' ');
-      debugLong(extraSeconds);
-      DEBUGSERIAL(' ');
-      debugLong(recentFix.fixDateTime.secondInDay);
-      DEBUGSERIAL(' ');
-      debugLong(nowDateTime->secondInDay);
-      DEBUGSERIAL(' ');
-      debugLong(DUSK_START);
-      DEBUGSERIAL(' ');
-      debugLong(NIGHT_END);
-      DEBUGSERIAL(' ');
-      debugLong(nowDateTime->dayInYear);
-      DEBUGSERIAL(' ');
-      debugLong(EVENT_START_DAY);
-*/
-      DEBUGSERIAL('\r');
-      DEBUGSERIAL('\n');
-    }
-#endif    
 }
 
 inline uint8_t dtSecond(const datetime_struct *dt) { return (uint8_t) (dt->secondInDay % 60L); }
@@ -606,10 +423,6 @@ void ppsIsr(void)
 {
   lastPulseMs = timer0_millis;
   pulsesSinceFix++;
-
-#if TESTING_ISR
-  isrCount++;
-#endif
 }
 
 // configure power save mode to be cyclic mode - UBX-CFG-PM2
