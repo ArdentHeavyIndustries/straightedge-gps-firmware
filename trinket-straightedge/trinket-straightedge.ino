@@ -26,17 +26,10 @@ enum state_enum currentState;
 /* Should be DEBUG-only */
 unsigned long lastDebug;
 uint8_t inDebug;
-void debugDigit(uint8_t x) { DEBUGSERIAL('0' + (x%10)); }
 void debugLong(uint32_t x) { 
-  debugDigit((x / 100000000L) % 10); 
-  debugDigit((x / 10000000L) % 10); 
-  debugDigit((x / 1000000L) % 10); 
-  debugDigit((x / 100000L) % 10); 
-  debugDigit((x / 10000L) % 10); 
-  debugDigit((x / 1000L) % 10); 
-  debugDigit((x / 100L) % 10); 
-  debugDigit((x / 10L) % 10); 
-  debugDigit(x % 10); 
+  for (unsigned long l = 100000000L; l > 0; l = l / 10L) {
+    DEBUGSERIAL('0' + ((x / l) % 10));
+  }
 }
 #endif
 
@@ -106,35 +99,45 @@ void setup() {
 
 void loop(void) {
 #if TESTING
+/*
   unsigned long now = millis();
-  if (now - lastDebug > 1000L) {
+  if (now - lastDebug > 1075L) {
     inDebug = true;
     lastDebug = now;
   } else {
     inDebug = false;
   }
+*/
+  if (lastPulseMs > lastDebug) {
+    inDebug = true;
+    lastDebug = lastPulseMs;
+  } else {
+    inDebug = false;
+  }
+#endif /* TESTING */
 
+#if TESTING_STATE
   if (inDebug) {
     DEBUGSERIAL('A' + currentState);
   }
-#endif
+#endif /* TESTING_STATE */
   
   enum state_enum nextState = stateLoop(currentState);
 
-#if TESTING
+#if TESTING_STATE
   if (inDebug) {
     DEBUGSERIAL('\r');
     DEBUGSERIAL('\n');
   }
-#endif
+#endif /* TESTING_STATE */
 
   if (nextState != currentState) {
-#if TESTING
+#if TESTING_STATE
     DEBUGSERIAL('A' + currentState);
     DEBUGSERIAL('a' + nextState);
     DEBUGSERIAL('\r');
     DEBUGSERIAL('\n');
-#endif
+#endif /* TESTING_STATE */
     enterState(nextState);
     currentState = nextState;
   }
@@ -208,6 +211,7 @@ enum state_enum startupLoop(void) {
 }
 
 enum state_enum daytimeLoop(void) {
+#if !TESTING_TIME
   if (recentFix.fixValid) {
     struct datetime_struct nowDateTime;
     estimateNow(&nowDateTime);
@@ -220,6 +224,7 @@ enum state_enum daytimeLoop(void) {
   } else { /* No idea what time it is! */
     return stateStartup;
   }
+#endif /* !TESTING_TIME */
 }
 
 enum state_enum duskLoop(void) 
@@ -245,6 +250,7 @@ enum state_enum duskLoop(void)
 
 enum state_enum nightPreLoop(void) 
 {
+#if !TESTING_TIME
   struct datetime_struct nowDateTime;
   estimateNow(&nowDateTime);
 
@@ -258,9 +264,11 @@ enum state_enum nightPreLoop(void)
   } else {
     return stateNightPre;
   }
+#endif /* !TESTING_TIME */
 }
 
 enum state_enum nightStartLoop(void) {
+#if !TESTING_TIME
   struct datetime_struct nowDateTime;
   estimateNow(&nowDateTime);
 
@@ -276,6 +284,7 @@ enum state_enum nightStartLoop(void) {
   } else {
     return stateNightStart;
   }
+#endif /* !TESTING_TIME */  
 }
 
 uint8_t seismicBrightness(unsigned long waveOffset, unsigned long msNow)
@@ -328,7 +337,7 @@ enum state_enum nightEventLoop(void)
       DEBUGSERIAL(' ');
       debugLong(msNow);
     }
-#endif
+#endif /* TESTING_SEISMIC */
 
     digitalWrite(LEDPIN, inNormalPulse ? HIGH : LOW);
   } else {
@@ -346,7 +355,7 @@ enum state_enum nightEventLoop(void)
       debugLong(pwaveOffset);
       DEBUGSERIAL(' ');
     }
-#endif
+#endif /* TESTING_SEISMIC */
     
     if ( ((swaveOffset < msNow) && (msNow < swaveOffset + SEISMIC_DURATION_FULL)) ||
 	       ((pwaveOffset < msNow) && (msNow < pwaveOffset + SEISMIC_DURATION_FULL)) ) {
@@ -459,13 +468,13 @@ int monthFirstDate[NMONTHS] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304
 
 void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 {
-#if TESTING
+#if TESTING_NMEA_PARSE
   for (int i = 0; i < buflen; i++) {
     DEBUGSERIAL(buffer[i]);
   }
   DEBUGSERIAL('\r');
   DEBUGSERIAL('\n');
-#endif
+#endif /* TESTING_NMEA_PARSE */
 
   if (buflen < RMC_MIN_LEN) {
     return;
@@ -527,7 +536,7 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen)
 
   DEBUGSERIAL('\r');
   DEBUGSERIAL('\n');
-#endif
+#endif /* TESTING_NMEA_PARSE */
 }
 
 #define SECONDS_IN_DAY 86400L
@@ -564,6 +573,7 @@ void estimateNow(struct datetime_struct *nowDateTime)
       debugLong(myLastPulseMs);
       DEBUGSERIAL(' ');
       debugLong(nowDateTime->millisInSecond);
+/*
       DEBUGSERIAL(' ');
       debugLong(extraSeconds);
       DEBUGSERIAL(' ');
@@ -578,6 +588,9 @@ void estimateNow(struct datetime_struct *nowDateTime)
       debugLong(nowDateTime->dayInYear);
       DEBUGSERIAL(' ');
       debugLong(EVENT_START_DAY);
+*/
+      DEBUGSERIAL('\r');
+      DEBUGSERIAL('\n');
     }
 #endif    
 }

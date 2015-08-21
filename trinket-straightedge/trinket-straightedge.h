@@ -1,9 +1,10 @@
 #ifndef TRINKET_STRAIGHTEDGE_H
 #define TRINKET_STRAIGHTEDGE_H 1
 
-#define TESTING 0
+#define TESTING 1
+#define TESTING_STATE 0
 #define TESTING_NMEA_PARSE 0
-#define TESTING_TIME 0
+#define TESTING_TIME 1
 #define TESTING_SEISMIC 0
 #define TESTING_ISR 0
 #define ARDUINO_UNO 0
@@ -158,21 +159,21 @@ void updateFixFromNmea(struct fix_struct *fupd, const char *buffer, int buflen);
 
 #define DIM_INTENSITY 32 // intensity of dim LEDs while the animation is happening
 
-#define SEISMIC_INTERVAL 1 // Minutes between seismic waves: happen when (minute-in-hour % SEISMIC_INTERVAL == 0)
+#define SEISMIC_INTERVAL 10 // Minutes between seismic waves: happen when (minute-in-hour % SEISMIC_INTERVAL == 0)
 
 #define SEISMIC_TOTAL_TIME (SWAVE_INTERVAL * 300) // milliseconds of seismic wave mode
 
 // FOR TESTING
 // Longitude of Nick & Liana's house: 122º 25.320000'
 // Longitude of Cesar Chavez x US-101 122º 24.320000'
-#define X0 25320000L
-#define X0 24320000L
+// #define X0 25320000L
+// #define X0 24320000L
 
 // Longitude of Octagon 122º 24.393720' (= -122.406217º) 
 // Nearby, 122º 23.893720 (= -122.398229º) is 4th & Bryant
 // Nearby, 122º 23.393720 (= -122.389895º) is King and Embarcadero -- other end would be Gough & McAllister (or with N/S to beach at maritime park)
-#define X0 24393720L
-#define X0 23893720L
+// #define X0 24393720L
+// #define X0 23893720L
 #define X0 23393720L
 
 #endif
