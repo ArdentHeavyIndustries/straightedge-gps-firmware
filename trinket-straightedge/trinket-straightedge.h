@@ -1,12 +1,6 @@
 #ifndef TRINKET_STRAIGHTEDGE_H
 #define TRINKET_STRAIGHTEDGE_H 1
 
-#define TESTING 0
-#define TESTING_STATE 0
-#define TESTING_NMEA_PARSE 0
-#define TESTING_TIME 0
-#define TESTING_SEISMIC 0
-#define TESTING_ISR 0
 #define ARDUINO_UNO 0
 
 /* Times and dates for Burning Man 2015

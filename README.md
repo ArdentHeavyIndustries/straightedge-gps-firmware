@@ -19,6 +19,27 @@ To get started working with the firmware, you'll need a few pieces of software f
 
 You should now be able to upload one of the firmwares to the boards. Some screenshots of the process are available in the [Adafruit Arduino IDE setup guide](https://learn.adafruit.com/adafruit-arduino-ide-setup/arduino-1-dot-6-x-ide) and the [Adafruit Trinket Setting Up with Arduino IDE guide](https://learn.adafruit.com/introducing-trinket/setting-up-with-arduino-ide).
 
+## Install real, production firmware
+
+Open the trinket-straightedge directory and then open the trinket-straightedge.ino file using Arduino.app. Compile it with the "verify" (check-mark) button on the Arduino IDE.
+
+In Arduino > Preferences..., check the box for "Show verbose output during:" "upload".
+
+The Arduino IDE window is split into two panes. Drag the divider between the panes to make the lower pane with the black background larger (at least half the window). This lower pane should be filled with messages from the compiler.
+
+Connect a trinket-GPS assembly to your computer with a microUSB cable. Hopefully, you can see a red light on the trinket that is almost entirely covered by black nail polish. Push and release the reset button on the trinket, and when its red light starts blinking, within a few seconds of restart, hit the "upload" (arrow) button on the Arduino IDE. 
+
+The upload should print lots of orange text from "avrdude." At the end, it should print
+
+    avrdude: verifying ...
+    avrdude: 5270 bytes of flash verified
+
+    avrdude done.  Thank you.
+
+If instead you see an error, the upload failed and the trinket probably lost the software it needs to receive new programs over USB. You can unplug the trinket and re-try the upload, but this often fails.
+
+After the firmware is uploaded, unplug the microUSB.
+
 ## Assembly test
 
 To test the trinket-GPS assembly, download the trinket-gps-assembly-test directory, with trinket-gps-assembly-test.ino inside it. Compile it with the "verify" button on the Arduino IDE. 
