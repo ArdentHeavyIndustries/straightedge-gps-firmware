@@ -15,8 +15,9 @@
  * 
  * 1% clock skew => 15 minutes in 24 hours
  * GPS cold-start fix in <30 minutes
- * Nominal 45 minute "dusk" period allows 15 minute fast drift 
- * (i.e., 30 minutes real dusk period) and GPS fix before night.
+ * Nominal 1 hour "dusk" period allows for drift and GPS fix before nightfall.
+ * That is, if on-board clock is slow, we enter dusk at actual time later than
+ * dusk start, and still need time to get a GPS fix and avoid weird blinking.
  */
 
 # define DUSK_START       6540L /* 18:49 PDT = 01:49 UTC */
@@ -40,7 +41,7 @@
 #define PULSE_DUR              40L
 #define PULSE_END_A          (PULSE_START_A + PULSE_DUR)
 #define PULSE_END_B          (PULSE_START_B + PULSE_DUR)
-#define UNSYNCH_PRE_PERIOD   2500L
+#define UNSYNCH_PRE_PERIOD   3000L
 #define PRE_PULSE_DUR          20L
 #define UNSYNCH_START_PERIOD 2000L
 #define START_PULSE_DUR        30L
@@ -64,7 +65,7 @@
 /* Max milliseconds to wait for PPS pulse
  * before falling back on internal clock
  */
-#define MAX_PULSE_WAIT   1100
+#define MAX_PULSE_WAIT   1150
 
 /* Data structure for date & time, always in UTC */
 struct datetime_struct {

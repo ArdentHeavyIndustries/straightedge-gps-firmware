@@ -211,13 +211,6 @@ enum state_enum nightEventLoop(void)
   struct datetime_struct nowDateTime;
   estimateNow(&nowDateTime);
 
-  // am i going in the right direction? (should be positive...)
-  // Time offset in milliseconds from start of seismic event to pulse starting at this location
-  unsigned long swaveOffset = PULSE_START_A + (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * SWAVE_INTERVAL;
-  unsigned long pwaveOffset = PULSE_START_A + (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * PWAVE_INTERVAL;
-  
-  // check if this works as intended
-  // seismic event always starts at the top of a minute
   unsigned long msNow = ( dtSecond(&nowDateTime) * 1000L ) + ((unsigned long) nowDateTime.millisInSecond);
 
   // True iff we're in a "normal" pulse with 
@@ -226,10 +219,19 @@ enum state_enum nightEventLoop(void)
                             (nowDateTime.millisInSecond >= PULSE_START_B && nowDateTime.millisInSecond < PULSE_END_B) );
 
   if ( (dtMinute(&nowDateTime) % SEISMIC_INTERVAL) ||
-       (msNow > SEISMIC_TOTAL_TIME) ){
+       (msNow > SEISMIC_TOTAL_TIME * 2) ){
     // not in animation phase - proceed normally
     digitalWrite(LEDPIN, inNormalPulse ? HIGH : LOW);
   } else {
+    // Time offset in milliseconds from start of seismic event to pulse starting at this location
+    unsigned long swaveOffset = PULSE_START_A + (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * SWAVE_INTERVAL;
+    unsigned long pwaveOffset = PULSE_START_A + (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * PWAVE_INTERVAL;
+
+    if (msNow > SEISMIC_TOTAL_TIME) {
+      swaveOffset += SEISMIC_TOTAL_TIME;
+      pwaveOffset += SEISMIC_TOTAL_TIME;
+    }
+      
     // EARTHQUAKE!
     if ( ((swaveOffset < msNow) && (msNow < swaveOffset + SEISMIC_DURATION_FULL)) ||
 	       ((pwaveOffset < msNow) && (msNow < pwaveOffset + SEISMIC_DURATION_FULL)) ) {
