@@ -58,14 +58,6 @@ enum state_enum stateLoop(enum state_enum) {
   switch(currentState) {
     case stateStartup:
       return startupLoop();
-    case stateDaytime:
-      return daytimeLoop();
-    case stateDusk:
-      return duskLoop();
-    case stateNightPre:
-      return nightPreLoop();
-    case stateNightStart:
-      return nightStartLoop();
     case stateNightEvent:
       return nightEventLoop();
     
@@ -81,24 +73,12 @@ void enterState(enum state_enum nextState)
   switch(nextState) {
     case stateStartup:
       return startupEnter();
-    case stateDaytime:
-      return daytimeEnter();
-    case stateDusk:
-      return duskEnter();
-    case stateNightPre:
-      return nightPreEnter();
-    case stateNightStart:
-      return nightStartEnter();
     case stateNightEvent:
       return nightEventEnter();
   }  
 }
 
 void startupEnter(void)    { recentFix.fixValid = 0;   activateGPS(); }
-void daytimeEnter(void)    {                         deactivateGPS(); }
-void duskEnter(void)       { recentFix.fixValid = 0;   activateGPS(); }
-void nightPreEnter(void)   {                         deactivateGPS(); }
-void nightStartEnter(void) {                           activateGPS(); }
 void nightEventEnter(void) {                           activateGPS(); }
 
 enum state_enum startupLoop(void) {
@@ -112,82 +92,11 @@ enum state_enum startupLoop(void) {
     return stateStartup;
   }
 
-  if (recentFix.fixDateTime.secondInDay < DUSK_START || recentFix.fixDateTime.secondInDay >= NIGHT_END) {
-    return stateDaytime;
-  } else { /* Jump from startup into dusk and let dusk state switch into night -- keeps all logic to pick which night state in one function */
-    return stateDusk;
-  }
-}
-
-enum state_enum daytimeLoop(void) {
-  if (recentFix.fixValid) {
-    struct datetime_struct nowDateTime;
-    estimateNow(&nowDateTime);
-
-    if ((nowDateTime.secondInDay < DUSK_START) || (nowDateTime.secondInDay >= NIGHT_END)) {
-      return stateDaytime;
-    } else { /* Switch from daytime to dusk and never directly to night, in order to get a good GPS fix */
-      return stateDusk;
-    }
-  } else { /* No idea what time it is! */
-    return stateStartup;
-  }
-}
-
-enum state_enum duskLoop(void) 
-{ 
-  if (recentFix.fixValid) {
-    struct datetime_struct nowDateTime;
-    estimateNow(&nowDateTime);
-    
-    if (nowDateTime.dayInYear < EVENT_START_DAY) {
-      return stateNightPre;
-    } else if (nowDateTime.secondInDay < NIGHT_START) {
-      return stateDusk;
-    } else if (nowDateTime.dayInYear == EVENT_START_DAY) {
-      /* Note -- this runs one cycle of nightStart even if we're switch out of dusk after the event start time */
-      return stateNightStart;
-    } else {
-      return stateNightEvent;
-    }
-  } else { /* Keep waiting for a valid fix &/or nightfall */
-    return stateDusk;
-  }
-}
-
-enum state_enum nightPreLoop(void) 
-{
-  struct datetime_struct nowDateTime;
-  estimateNow(&nowDateTime);
-
-  if (nowDateTime.secondInDay >= NIGHT_START) {
-    unsigned long millisInPeriod = millis() % UNSYNCH_PRE_PERIOD;
-    digitalWrite(LEDPIN, ((millisInPeriod >= PULSE_START_A) && (millisInPeriod < (PULSE_START_A + PRE_PULSE_DUR))) ? HIGH : LOW);
-  }
-  
-  if (nowDateTime.secondInDay >= NIGHT_END) {
-    return stateDaytime;
-  } else {
-    return stateNightPre;
-  }
-}
-
-enum state_enum nightStartLoop(void) {
-  struct datetime_struct nowDateTime;
-  estimateNow(&nowDateTime);
-
-  if (nowDateTime.secondInDay >= NIGHT_START) {
-    unsigned long millisInPeriod = millis() % UNSYNCH_START_PERIOD;
-    digitalWrite(LEDPIN, ((millisInPeriod >= PULSE_START_A) && (millisInPeriod < (PULSE_START_A + START_PULSE_DUR))) ? HIGH : LOW);
-  }
-
-  if (nowDateTime.secondInDay >= NIGHT_END || nowDateTime.secondInDay < DUSK_START) {
-    return stateDaytime;
-  } else if (nowDateTime.secondInDay >= EVENT_START_SEC) {
+//  if (recentFix.fixDateTime.secondInDay < DUSK_START || recentFix.fixDateTime.secondInDay >= NIGHT_END) {
     return stateNightEvent;
-  } else {
-    return stateNightStart;
-  }
+//  } else { /* Jump from startup into dusk and let dusk state switch into night -- keeps all logic to pick which night state in one function */
+//    return stateDusk;
+//  }
 }
 
 uint8_t seismicBrightness(unsigned long waveOffset, unsigned long msNow)
@@ -218,50 +127,50 @@ enum state_enum nightEventLoop(void)
                           ( (nowDateTime.millisInSecond >= PULSE_START_A && nowDateTime.millisInSecond < PULSE_END_A) ||
                             (nowDateTime.millisInSecond >= PULSE_START_B && nowDateTime.millisInSecond < PULSE_END_B) );
 
-  if ( (dtMinute(&nowDateTime) % SEISMIC_INTERVAL) ||
-       (msNow > SEISMIC_TOTAL_TIME * 2) ){
+//  if ( (dtMinute(&nowDateTime) % SEISMIC_INTERVAL) ||
+//       (msNow > SEISMIC_TOTAL_TIME * 2) ){
     // not in animation phase - proceed normally
     digitalWrite(LEDPIN, inNormalPulse ? HIGH : LOW);
-  } else {
-    // Time offset in milliseconds from start of seismic event to pulse starting at this location
-    unsigned long swaveOffset = PULSE_START_A + (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * SWAVE_INTERVAL;
-    unsigned long pwaveOffset = PULSE_START_A + (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * PWAVE_INTERVAL;
-
-    if (msNow > SEISMIC_TOTAL_TIME) {
-      swaveOffset += SEISMIC_TOTAL_TIME;
-      pwaveOffset += SEISMIC_TOTAL_TIME;
-    }
-      
-    // EARTHQUAKE!
-    if ( ((swaveOffset < msNow) && (msNow < swaveOffset + SEISMIC_DURATION_FULL)) ||
-	       ((pwaveOffset < msNow) && (msNow < pwaveOffset + SEISMIC_DURATION_FULL)) ) {
-      // animate!: turn on LED. Highest priority.
-
-      // Calculate the brightness for each wave individually, then take the maximum
-      // Default brightness is 0
-      uint8_t swaveBrightness = seismicBrightness(swaveOffset, msNow);
-      uint8_t pwaveBrightness = seismicBrightness(pwaveOffset, msNow);
-
-      analogWrite(LEDPIN, (swaveBrightness > pwaveBrightness) ? swaveBrightness : pwaveBrightness);       
-    } else if ( ((swaveOffset - CLEAR_WINDOW < msNow) && (msNow < swaveOffset + CLEAR_WINDOW + SEISMIC_DURATION_FULL)) ||
-		            ((pwaveOffset - CLEAR_WINDOW < msNow) && (msNow < pwaveOffset + CLEAR_WINDOW + SEISMIC_DURATION_FULL)) ) {
-      
-      // in clearout window: turn off LED
-      digitalWrite(LEDPIN, LOW);
-
-    } else {
-
-      // it's animation time, but this position isn't currently activated: blink dimly
-      // note that analogWrite 0 is special-cased to digitalWrite LOW already
-      analogWrite(LEDPIN, inNormalPulse ? DIM_INTENSITY : LOW);
-    }
-  }
+//  } else {
+//    // Time offset in milliseconds from start of seismic event to pulse starting at this location
+//    unsigned long swaveOffset = PULSE_START_A + (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * SWAVE_INTERVAL;
+//    unsigned long pwaveOffset = PULSE_START_A + (( recentFix.fixLongiUMin - X0 ) / LONG_INTERVAL ) * PWAVE_INTERVAL;
+//
+//    if (msNow > SEISMIC_TOTAL_TIME) {
+//      swaveOffset += SEISMIC_TOTAL_TIME;
+//      pwaveOffset += SEISMIC_TOTAL_TIME;
+//    }
+//      
+//    // EARTHQUAKE!
+//    if ( ((swaveOffset < msNow) && (msNow < swaveOffset + SEISMIC_DURATION_FULL)) ||
+//	       ((pwaveOffset < msNow) && (msNow < pwaveOffset + SEISMIC_DURATION_FULL)) ) {
+//      // animate!: turn on LED. Highest priority.
+//
+//      // Calculate the brightness for each wave individually, then take the maximum
+//      // Default brightness is 0
+//      uint8_t swaveBrightness = seismicBrightness(swaveOffset, msNow);
+//      uint8_t pwaveBrightness = seismicBrightness(pwaveOffset, msNow);
+//
+//      analogWrite(LEDPIN, (swaveBrightness > pwaveBrightness) ? swaveBrightness : pwaveBrightness);       
+//    } else if ( ((swaveOffset - CLEAR_WINDOW < msNow) && (msNow < swaveOffset + CLEAR_WINDOW + SEISMIC_DURATION_FULL)) ||
+//		            ((pwaveOffset - CLEAR_WINDOW < msNow) && (msNow < pwaveOffset + CLEAR_WINDOW + SEISMIC_DURATION_FULL)) ) {
+//      
+//      // in clearout window: turn off LED
+//      digitalWrite(LEDPIN, LOW);
+//
+//    } else {
+//
+//      // it's animation time, but this position isn't currently activated: blink dimly
+//      // note that analogWrite 0 is special-cased to digitalWrite LOW already
+//      analogWrite(LEDPIN, inNormalPulse ? DIM_INTENSITY : LOW);
+//    }
+//  }
   
-  if (nowDateTime.secondInDay >= NIGHT_END || nowDateTime.secondInDay < DUSK_START) {
-    return stateDaytime;
-  } else {
+//  if (nowDateTime.secondInDay >= NIGHT_END || nowDateTime.secondInDay < DUSK_START) {
+//    return stateDaytime;
+//  } else {
     return stateNightEvent;
-  }
+//  }
 }
 
 // Can't drain all serial input on one loop -- blocks too long, miss cycles through updateBlink
